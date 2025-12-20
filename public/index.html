@@ -87,6 +87,41 @@
         .success-message svg { width: 80px; height: 80px; margin-bottom: 20px; }
         .success-message h2 { color: #10b981; margin-bottom: 10px; }
         ul { line-height: 1.8; color: #4b5563; }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .bank-header { padding: 30px 20px; padding-top: 60px; }
+            .bank-logo { font-size: 1.8em; }
+            .bank-tagline { font-size: 0.95em; }
+            .nav-links { position: static; justify-content: center; margin-bottom: 20px; width: 100%; }
+            .nav-link { padding: 6px 12px; font-size: 0.85em; }
+            .card { padding: 25px 20px; }
+            h2 { font-size: 1.4em; }
+            h3 { font-size: 1.1em; }
+            .step-indicator { padding: 0 10px; margin-bottom: 50px; }
+            .step { font-size: 0.75em; padding: 5px; }
+            .step::before { width: 24px; height: 24px; top: -35px; }
+            .account-types { grid-template-columns: 1fr; gap: 15px; }
+            .account-type { padding: 20px; }
+            .account-type h3 { font-size: 1.2em; }
+            .btn-primary { padding: 14px 24px; font-size: 15px; }
+            .form-group input, .form-group select { padding: 10px 14px; font-size: 14px; }
+            .verified-data { padding: 15px; }
+            .data-item { flex-direction: column; gap: 5px; padding: 8px 0; }
+            .portrait { max-width: 120px; }
+        }
+        
+        @media (max-width: 480px) {
+            .bank-logo { font-size: 1.5em; }
+            .bank-tagline { font-size: 0.85em; }
+            .nav-links { flex-direction: column; gap: 8px; }
+            .nav-link { width: 100%; text-align: center; }
+            .card { padding: 20px 15px; }
+            h2 { font-size: 1.2em; }
+            .step { font-size: 0.7em; }
+            .step::before { width: 20px; height: 20px; }
+        }
     </style>
 </head>
 <body>

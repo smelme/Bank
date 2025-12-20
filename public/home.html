@@ -39,6 +39,38 @@
         .sidebar-card:last-child { margin-bottom: 0; }
         .loading { text-align: center; padding: 40px; color: #3b82f6; font-size: 1.1em; }
         .error { background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(252,165,165,0.1) 100%); border: 2px solid #ef4444; padding: 20px; border-radius: 10px; color: #991b1b; text-align: center; }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 968px) {
+            .dashboard { grid-template-columns: 1fr; }
+        }
+        
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .bank-header { flex-direction: column; gap: 15px; padding: 25px 20px; text-align: center; }
+            .bank-logo { font-size: 1.6em; }
+            .user-section { text-align: center; }
+            .user-name { font-size: 1em; }
+            .card { padding: 20px; }
+            .card h2 { font-size: 1.3em; }
+            .card h3 { font-size: 1.1em; }
+            .balance-section { padding: 20px; }
+            .balance-amount { font-size: 2em; }
+            .quick-actions { grid-template-columns: 1fr; gap: 10px; }
+            .action-btn { padding: 12px; font-size: 0.9em; }
+            .activity-item { flex-direction: column; gap: 5px; padding: 12px; }
+            .info-item { flex-direction: column; gap: 5px; padding: 10px 0; }
+            .account-header { flex-direction: column; gap: 10px; text-align: center; }
+        }
+        
+        @media (max-width: 480px) {
+            .bank-logo { font-size: 1.4em; }
+            .card { padding: 15px; }
+            .balance-section { padding: 15px; }
+            .balance-amount { font-size: 1.8em; }
+            .card h2 { font-size: 1.2em; }
+            .card h3 { font-size: 1em; }
+        }
     </style>
 </head>
 <body>

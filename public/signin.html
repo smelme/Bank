@@ -68,6 +68,35 @@
         .capture-preview { max-width: 400px; margin: 20px auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
         .capture-preview img { width: 100%; border-radius: 12px; }
         ul { line-height: 1.8; color: #4b5563; margin-left: 20px; }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .bank-header { padding: 30px 20px; padding-top: 60px; }
+            .bank-logo { font-size: 1.8em; }
+            .bank-tagline { font-size: 0.95em; }
+            .nav-links { position: static; justify-content: center; margin-bottom: 20px; width: 100%; }
+            .nav-link { padding: 6px 12px; font-size: 0.85em; }
+            .card { padding: 25px 20px; }
+            h2 { font-size: 1.4em; }
+            h3 { font-size: 1.1em; }
+            .btn-primary, .btn-secondary { padding: 14px 24px; font-size: 15px; }
+            .verified-data { padding: 15px; }
+            .data-item { flex-direction: column; gap: 5px; padding: 8px 0; }
+            .portrait { max-width: 120px; }
+            .video-container { max-width: 100%; }
+            .capture-preview { max-width: 100%; }
+        }
+        
+        @media (max-width: 480px) {
+            .bank-logo { font-size: 1.5em; }
+            .bank-tagline { font-size: 0.85em; }
+            .nav-links { flex-direction: column; gap: 8px; }
+            .nav-link { width: 100%; text-align: center; }
+            .card { padding: 20px 15px; }
+            h2 { font-size: 1.2em; }
+            ul { margin-left: 15px; font-size: 0.9em; }
+        }
     </style>
 </head>
 <body>
