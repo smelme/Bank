@@ -129,7 +129,6 @@ app.post('/verify', async (req, res) => {
         const { credentials, nonce } = req.body;
         
         console.log('Received verification request for nonce:', nonce);
-        console.log('ORIGIN env var:', process.env.ORIGIN);
 
         if (!nonce || !sessionStore.has(nonce)) {
             console.error('Invalid or expired nonce:', nonce);
@@ -141,12 +140,14 @@ app.post('/verify', async (req, res) => {
         // Clean up used nonce (prevent replay)
         sessionStore.delete(nonce);
 
-        console.log('Processing credentials with origin:', process.env.ORIGIN || 'http://localhost:3001');
+        // Determine origin from request or environment variable
+        const origin = process.env.ORIGIN || `${req.protocol}://${req.get('host')}`;
+        console.log('Processing credentials with origin:', origin);
         
         const result = await processCredentials(credentials, {
             nonce,
             jwk,
-            origin: process.env.ORIGIN || 'http://localhost:3001'
+            origin
         });
 
         console.log('Verification result:', result);
@@ -292,10 +293,12 @@ app.post('/signin-verify', async (req, res) => {
         const jwk = sessionStore.get(nonce);
         sessionStore.delete(nonce);
 
+        const origin = process.env.ORIGIN || `${req.protocol}://${req.get('host')}`;
+        console.log('Sign-in: Processing credentials with origin:', origin);
         const result = await processCredentials(credentials, {
             nonce,
             jwk,
-            origin: process.env.ORIGIN || 'http://localhost:3001'
+            origin
         });
 
         console.log('Sign-in verification result:', {
