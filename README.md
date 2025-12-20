@@ -44,6 +44,27 @@ Both document types are requested during verification, and the wallet will prese
    npm install
    ```
 
+2. **(Optional) Database Setup:**
+
+   By default, the system uses in-memory storage. For persistent storage, set up PostgreSQL:
+
+   **Local Development:**
+   ```bash
+   # Install PostgreSQL locally, then:
+   export DATABASE_URL="postgresql://user:password@localhost:5432/tamange_bank"
+   ```
+
+   **Railway Deployment:**
+   - Add PostgreSQL plugin in Railway dashboard
+   - DATABASE_URL is automatically set by Railway
+   - Tables are created automatically on first startup
+
+   **Database Schema:**
+   - `accounts` table: Stores customer accounts with face descriptors
+   - `sessions` table: Stores active login sessions
+   - Automatic session cleanup every hour
+   - If DATABASE_URL is not set, falls back to in-memory storage
+
 ## Running the Application
 
 1. Start the server:

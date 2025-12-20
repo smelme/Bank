@@ -2,6 +2,7 @@ import './polyfill.js';
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
+import * as db from './database.js';
 
 import {
     createCredentialsRequest,
@@ -63,15 +64,22 @@ app.use('/models', express.static('models'));
 app.get('/favicon.ico', (req, res) => res.status(204).end());
 
 // In-memory store for session data (nonce -> jwk)
-// In a real app, use a database or secure session store
+// Short-lived, only used during credential exchange
 const sessionStore = new Map();
 
-// In-memory store for accounts (email -> account data)
-// In a real app, use a database
+// In-memory fallback stores (used when database is not available)
 const accountsStore = new Map();
-
-// In-memory store for active sessions (sessionToken -> account data)
 const sessionTokenStore = new Map();
+
+// Initialize database
+const dbAvailable = db.initDatabase();
+if (dbAvailable) {
+    await db.setupTables();
+    // Clean up expired sessions every hour
+    setInterval(() => db.cleanupExpiredSessions(), 60 * 60 * 1000);
+} else {
+    console.log('Running with in-memory storage (data will not persist across restarts)');
+}
 
 app.get('/request-params', async (req, res) => {
     try {
@@ -220,17 +228,24 @@ app.post('/create-account', async (req, res) => {
             errors.push('Invalid phone number format');
         }
 
-        // Check for duplicate account (by email)
-        if (accountsStore.has(email.toLowerCase())) {
-            errors.push('An account with this email address already exists');
-        }
-
-        // Check for duplicate by document number
+        // Check for duplicate account (by document number)
         const documentNumber = verifiedData.claims.document_number;
-        for (const [, account] of accountsStore) {
-            if (account.documentNumber === documentNumber) {
+        
+        if (db.isDatabaseAvailable()) {
+            const exists = await db.accountExists(documentNumber);
+            if (exists) {
                 errors.push('An account with this document number already exists');
-                break;
+            }
+        } else {
+            // In-memory fallback
+            if (accountsStore.has(email.toLowerCase())) {
+                errors.push('An account with this email address already exists');
+            }
+            for (const [, account] of accountsStore) {
+                if (account.documentNumber === documentNumber) {
+                    errors.push('An account with this document number already exists');
+                    break;
+                }
             }
         }
 
@@ -264,11 +279,31 @@ app.post('/create-account', async (req, res) => {
             balance: 0
         };
 
-        // Store account
-        accountsStore.set(email.toLowerCase(), account);
+        // Store account in database or memory
+        if (db.isDatabaseAvailable()) {
+            try {
+                await db.createAccount({
+                    documentNumber: account.documentNumber,
+                    accountNumber: account.accountNumber,
+                    accountType: account.accountType,
+                    fullName: account.fullName,
+                    email: account.email,
+                    phone: account.phone,
+                    balance: account.balance,
+                    faceDescriptor: verifiedData.faceDescriptor
+                });
+                console.log('Account created in database:', accountNumber);
+            } catch (dbError) {
+                console.error('Database error creating account:', dbError);
+                return res.status(500).json({ success: false, error: 'Failed to create account' });
+            }
+        } else {
+            // In-memory fallback
+            accountsStore.set(email.toLowerCase(), account);
+            console.log('Account created in memory:', accountNumber);
+        }
 
-        console.log('Account created:', accountNumber);
-        console.log('Total accounts:', accountsStore.size);
+        console.log('Total accounts:', db.isDatabaseAvailable() ? 'in database' : accountsStore.size);
 
         res.json({
             success: true,
@@ -431,10 +466,28 @@ app.post('/biometric-verify', async (req, res) => {
 
         // Look up account by document number
         let matchingAccount = null;
-        for (const [email, account] of accountsStore.entries()) {
-            if (account.documentNumber === documentNumber) {
-                matchingAccount = account;
-                break;
+        
+        if (db.isDatabaseAvailable()) {
+            const dbAccount = await db.getAccountByDocumentNumber(documentNumber);
+            if (dbAccount) {
+                matchingAccount = {
+                    documentNumber: dbAccount.document_number,
+                    accountNumber: dbAccount.account_number,
+                    accountType: dbAccount.account_type,
+                    fullName: dbAccount.full_name,
+                    email: dbAccount.email,
+                    phone: dbAccount.phone,
+                    balance: parseFloat(dbAccount.balance),
+                    createdAt: dbAccount.created_at
+                };
+            }
+        } else {
+            // In-memory fallback
+            for (const [email, account] of accountsStore.entries()) {
+                if (account.documentNumber === documentNumber) {
+                    matchingAccount = account;
+                    break;
+                }
             }
         }
 
@@ -449,12 +502,19 @@ app.post('/biometric-verify', async (req, res) => {
 
         // Create session token
         const sessionToken = generateNonce();
-        sessionTokenStore.set(sessionToken, {
-            accountNumber: matchingAccount.accountNumber,
-            email: matchingAccount.email,
-            fullName: matchingAccount.fullName,
-            loginTime: new Date().toISOString()
-        });
+        
+        if (db.isDatabaseAvailable()) {
+            await db.createSession(sessionToken, matchingAccount.documentNumber, 60);
+        } else {
+            // In-memory fallback
+            sessionTokenStore.set(sessionToken, {
+                accountNumber: matchingAccount.accountNumber,
+                documentNumber: matchingAccount.documentNumber,
+                email: matchingAccount.email,
+                fullName: matchingAccount.fullName,
+                loginTime: new Date().toISOString()
+            });
+        }
 
         res.json({
             success: true,
@@ -469,7 +529,7 @@ app.post('/biometric-verify', async (req, res) => {
 });
 
 // Get account data (for home page)
-app.post('/get-account', (req, res) => {
+app.post('/get-account', async (req, res) => {
     try {
         const { sessionToken } = req.body;
 
@@ -477,13 +537,37 @@ app.post('/get-account', (req, res) => {
             return res.status(401).json({ success: false, error: 'No session token provided' });
         }
 
-        const session = sessionTokenStore.get(sessionToken);
+        let session = null;
+        let account = null;
+
+        if (db.isDatabaseAvailable()) {
+            session = await db.getSession(sessionToken);
+            if (session) {
+                const dbAccount = await db.getAccountByDocumentNumber(session.document_number);
+                if (dbAccount) {
+                    account = {
+                        accountNumber: dbAccount.account_number,
+                        accountType: dbAccount.account_type,
+                        fullName: dbAccount.full_name,
+                        email: dbAccount.email,
+                        phone: dbAccount.phone,
+                        balance: parseFloat(dbAccount.balance),
+                        createdAt: dbAccount.created_at
+                    };
+                }
+            }
+        } else {
+            // In-memory fallback
+            session = sessionTokenStore.get(sessionToken);
+            if (session) {
+                account = accountsStore.get(session.email);
+            }
+        }
+
         if (!session) {
             return res.status(401).json({ success: false, error: 'Invalid or expired session' });
         }
 
-        // Get full account data
-        const account = accountsStore.get(session.email);
         if (!account) {
             return res.status(404).json({ success: false, error: 'Account not found' });
         }
@@ -496,6 +580,7 @@ app.post('/get-account', (req, res) => {
                 fullName: account.fullName,
                 email: account.email,
                 phone: account.phone,
+                balance: account.balance || 0,
                 createdAt: account.createdAt
             }
         });
@@ -507,12 +592,18 @@ app.post('/get-account', (req, res) => {
 });
 
 // Logout endpoint
-app.post('/logout', (req, res) => {
+app.post('/logout', async (req, res) => {
     try {
         const { sessionToken } = req.body;
 
-        if (sessionToken && sessionTokenStore.has(sessionToken)) {
-            sessionTokenStore.delete(sessionToken);
+        if (sessionToken) {
+            if (db.isDatabaseAvailable()) {
+                await db.deleteSession(sessionToken);
+            } else {
+                if (sessionTokenStore.has(sessionToken)) {
+                    sessionTokenStore.delete(sessionToken);
+                }
+            }
         }
 
         res.json({ success: true, message: 'Logged out successfully' });

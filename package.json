@@ -11,7 +11,13 @@
   "engines": {
     "node": ">=18.17.0"
   },
-  "keywords": ["digital-id", "biometric", "face-recognition", "mDL", "PhotoID"],
+  "keywords": [
+    "digital-id",
+    "biometric",
+    "face-recognition",
+    "mDL",
+    "PhotoID"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
@@ -21,6 +27,7 @@
     "cbor2": "^2.0.1",
     "cors": "^2.8.5",
     "express": "^5.2.1",
-    "id-verifier": "^0.1.0"
+    "id-verifier": "^0.1.0",
+    "pg": "^8.16.3"
   }
 }
