@@ -27,9 +27,34 @@ process.on('exit', (code) => {
     console.log(`About to exit with code: ${code}`);
 });
 
+// Import fs and path at the top level
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static('public'));
+
+// Middleware to handle ES module imports without .js extension
+app.use('/node_modules', (req, res, next) => {
+    // If the request doesn't have an extension and it's for a JS module
+    if (!req.path.match(/\.[a-z]+$/i)) {
+        const jsPath = req.path + '.js';
+        const fullPath = path.join(__dirname, 'node_modules', jsPath);
+        
+        // Check if .js file exists
+        if (fs.existsSync(fullPath)) {
+            return res.sendFile(fullPath);
+        }
+    }
+    next();
+});
+
 // Serve the library files so frontend can import them
 app.use('/lib', express.static('node_modules/id-verifier/build'));
 app.use('/node_modules', express.static('node_modules'));
