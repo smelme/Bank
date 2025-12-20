@@ -141,7 +141,9 @@ app.post('/verify', async (req, res) => {
         sessionStore.delete(nonce);
 
         // Determine origin from request or environment variable
-        const origin = process.env.ORIGIN || `${req.protocol}://${req.get('host')}`;
+        // Use X-Forwarded-Proto for Railway/proxied environments
+        const protocol = req.get('X-Forwarded-Proto') || req.protocol;
+        const origin = process.env.ORIGIN || `${protocol}://${req.get('host')}`;
         console.log('Processing credentials with origin:', origin);
         
         const result = await processCredentials(credentials, {
@@ -293,7 +295,9 @@ app.post('/signin-verify', async (req, res) => {
         const jwk = sessionStore.get(nonce);
         sessionStore.delete(nonce);
 
-        const origin = process.env.ORIGIN || `${req.protocol}://${req.get('host')}`;
+        // Use X-Forwarded-Proto for Railway/proxied environments
+        const protocol = req.get('X-Forwarded-Proto') || req.protocol;
+        const origin = process.env.ORIGIN || `${protocol}://${req.get('host')}`;
         console.log('Sign-in: Processing credentials with origin:', origin);
         const result = await processCredentials(credentials, {
             nonce,
