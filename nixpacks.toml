@@ -1,0 +1,11 @@
+[phases.setup]
+nixPkgs = ["nodejs", "python3", "pkg-config", "pixman", "cairo", "pango"]
+
+[phases.install]
+cmds = ["npm ci --include=optional"]
+
+[phases.build]
+cmds = []
+
+[start]
+cmd = "node server.js"
