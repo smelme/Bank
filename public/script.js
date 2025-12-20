@@ -1,7 +1,11 @@
 import { requestCredentials } from '/lib/id-verifier.min.js';
+import { initI18n, t } from './i18n.js';
 
 let verifiedData = null;
 let selectedAccountType = null;
+
+// Initialize i18n (language selector + initial translations)
+initI18n();
 
 // Step navigation
 function showStep(stepId) {
@@ -45,21 +49,21 @@ document.getElementById('terms').addEventListener('change', validateForm);
 // Verify identity
 document.getElementById('verifyBtn').addEventListener('click', async () => {
     const resultDiv = document.getElementById('verifyResult');
-    resultDiv.innerHTML = '<div class="loading">Initializing verification...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('loadingInitVerification')}</div>`;
 
     try {
         // 1. Get request parameters from backend
-        resultDiv.innerHTML = '<div class="loading">Fetching request parameters...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('loadingFetchParams')}</div>`;
         const paramsResponse = await fetch('/request-params');
-        if (!paramsResponse.ok) throw new Error('Failed to get params');
+    if (!paramsResponse.ok) throw new Error(t('failedToGetParams'));
         const { requestParams, nonce } = await paramsResponse.json();
 
         // 2. Request credentials from wallet (DCAPI)
-        resultDiv.innerHTML = '<div class="loading">Requesting credentials from wallet...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('loadingRequestWallet')}</div>`;
         const credentials = await requestCredentials(requestParams);
 
         // 3. Send credentials to backend for verification
-        resultDiv.innerHTML = '<div class="loading">Verifying credentials...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('loadingVerifyCreds')}</div>`;
         const verifyResponse = await fetch('/verify', {
             method: 'POST',
             headers: {
@@ -71,12 +75,12 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
         const result = await verifyResponse.json();
         
         if (!result.success) {
-            throw new Error(result.error || 'Verification failed');
+            throw new Error(result.error || t('verificationFailed'));
         }
 
         if (result.validationErrors && result.validationErrors.length > 0) {
             resultDiv.innerHTML = `<div class="error-box">
-                <strong>Verification Issues:</strong>
+                <strong>${t('verificationIssues')}:</strong>
                 <ul style="margin-left: 20px; margin-top: 10px;">
                     ${result.validationErrors.map(err => `<li>${err}</li>`).join('')}
                 </ul>
@@ -89,7 +93,7 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
         showStep('step-account');
 
     } catch (error) {
-        resultDiv.innerHTML = `<div class="error-box">Error: ${error.message}</div>`;
+        resultDiv.innerHTML = `<div class="error-box">${t('errorPrefix')} ${error.message}</div>`;
         console.error(error);
     }
 });
@@ -99,7 +103,7 @@ function displayVerifiedData() {
     const display = document.getElementById('verifiedDataDisplay');
     const data = verifiedData.claims;
     
-    let html = '<h3>✓ Verified Information</h3>';
+    let html = `<h3>${t('verifiedInformation')}</h3>`;
     
     // Convert portrait byte array to base64 image if needed
     if (data.portrait) {
@@ -129,16 +133,16 @@ function displayVerifiedData() {
     };
     
     html += '<div>';
-    if (data.given_name) html += `<div class="data-item"><span class="data-label">First Name:</span><span class="data-value">${data.given_name}</span></div>`;
-    if (data.family_name) html += `<div class="data-item"><span class="data-label">Last Name:</span><span class="data-value">${data.family_name}</span></div>`;
-    if (data.birth_date) html += `<div class="data-item"><span class="data-label">Date of Birth:</span><span class="data-value">${data.birth_date}</span></div>`;
+    if (data.given_name) html += `<div class="data-item"><span class="data-label">${t('firstName')}:</span><span class="data-value">${data.given_name}</span></div>`;
+    if (data.family_name) html += `<div class="data-item"><span class="data-label">${t('lastName')}:</span><span class="data-value">${data.family_name}</span></div>`;
+    if (data.birth_date) html += `<div class="data-item"><span class="data-label">${t('dateOfBirth')}:</span><span class="data-value">${data.birth_date}</span></div>`;
     if (data.sex) {
         const gender = genderMap[data.sex] || data.sex;
-        html += `<div class="data-item"><span class="data-label">Gender:</span><span class="data-value">${gender}</span></div>`;
+        html += `<div class="data-item"><span class="data-label">${t('gender')}:</span><span class="data-value">${gender}</span></div>`;
     }
-    if (data.document_number) html += `<div class="data-item"><span class="data-label">Document Number:</span><span class="data-value">${data.document_number}</span></div>`;
-    if (data.issuing_authority) html += `<div class="data-item"><span class="data-label">Issuing Authority:</span><span class="data-value">${data.issuing_authority}</span></div>`;
-    if (data.expiry_date) html += `<div class="data-item"><span class="data-label">Expiry Date:</span><span class="data-value">${data.expiry_date}</span></div>`;
+    if (data.document_number) html += `<div class="data-item"><span class="data-label">${t('documentNumber')}:</span><span class="data-value">${data.document_number}</span></div>`;
+    if (data.issuing_authority) html += `<div class="data-item"><span class="data-label">${t('issuingAuthority')}:</span><span class="data-value">${data.issuing_authority}</span></div>`;
+    if (data.expiry_date) html += `<div class="data-item"><span class="data-label">${t('expiryDate')}:</span><span class="data-value">${data.expiry_date}</span></div>`;
     html += '</div>';
     
     display.innerHTML = html;
@@ -148,7 +152,7 @@ function displayVerifiedData() {
 document.getElementById('submitBtn').addEventListener('click', async () => {
     const submitBtn = document.getElementById('submitBtn');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Creating Account...';
+    submitBtn.textContent = t('creatingAccount');
 
     try {
         const accountData = {
@@ -179,18 +183,18 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         // Display success
         const accountDetails = document.getElementById('accountDetails');
         accountDetails.innerHTML = `
-            <h3>Your Account Information</h3>
-            <div class="data-item"><span class="data-label">Account Number:</span><span class="data-value">${result.account.accountNumber}</span></div>
-            <div class="data-item"><span class="data-label">Account Type:</span><span class="data-value">${result.account.accountType.charAt(0).toUpperCase() + result.account.accountType.slice(1)}</span></div>
-            <div class="data-item"><span class="data-label">Account Holder:</span><span class="data-value">${result.account.fullName}</span></div>
+            <h3>${t('yourAccountInformation')}</h3>
+            <div class="data-item"><span class="data-label">${t('accountNumberLabel')}:</span><span class="data-value">${result.account.accountNumber}</span></div>
+            <div class="data-item"><span class="data-label">${t('accountTypeLabel')}:</span><span class="data-value">${result.account.accountType.charAt(0).toUpperCase() + result.account.accountType.slice(1)}</span></div>
+            <div class="data-item"><span class="data-label">${t('accountHolder')}:</span><span class="data-value">${result.account.fullName}</span></div>
             <div class="data-item"><span class="data-label">Email:</span><span class="data-value">${result.account.email}</span></div>
-            <div class="data-item"><span class="data-label">Created:</span><span class="data-value">${new Date(result.account.createdAt).toLocaleString()}</span></div>
+            <div class="data-item"><span class="data-label">${t('createdLabel')}:</span><span class="data-value">${new Date(result.account.createdAt).toLocaleString()}</span></div>
         `;
         showStep('step-success');
 
     } catch (error) {
-        alert('Error: ' + error.message);
+        alert(`${t('errorPrefix')} ${error.message}`);
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Create Account';
+        submitBtn.textContent = t('createAccount');
     }
 });

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tamange Bank - Account Registration</title>
+    <title data-i18n="regTitle">Tamange Bank - Account Registration</title>
     <script type="importmap">
     {
         "imports": {
@@ -36,6 +36,7 @@
         .bank-logo { font-size: 2.5em; color: white; font-weight: 700; margin-bottom: 10px; letter-spacing: 1px; }
         .bank-tagline { color: rgba(255,255,255,0.9); font-size: 1.1em; font-weight: 300; }
         .nav-links { position: absolute; top: 20px; right: 30px; display: flex; gap: 15px; }
+    .lang-select { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.35); padding: 8px 10px; border-radius: 6px; font-size: 0.9em; font-weight: 600; }
         .nav-link { color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9em; font-weight: 500; transition: background 0.3s; }
         .nav-link:hover { background: rgba(255,255,255,0.2); }
         .nav-link.active { background: rgba(255,255,255,0.3); }
@@ -96,6 +97,7 @@
             .bank-tagline { font-size: 0.95em; }
             .nav-links { position: static; justify-content: center; margin-bottom: 20px; width: 100%; }
             .nav-link { padding: 6px 12px; font-size: 0.85em; }
+            .lang-select { padding: 6px 10px; font-size: 0.85em; }
             .card { padding: 25px 20px; }
             h2 { font-size: 1.4em; }
             h3 { font-size: 1.1em; }
@@ -117,6 +119,7 @@
             .bank-tagline { font-size: 0.85em; }
             .nav-links { flex-direction: column; gap: 8px; }
             .nav-link { width: 100%; text-align: center; }
+            .lang-select { width: 100%; text-align: center; }
             .card { padding: 20px 15px; }
             h2 { font-size: 1.2em; }
             .step { font-size: 0.7em; }
@@ -128,133 +131,141 @@
     <div class="container">
         <div class="bank-header">
             <div class="nav-links">
-                <a href="index.html" class="nav-link active">Open Account</a>
-                <a href="signin.html" class="nav-link">Sign In</a>
+                <select class="lang-select" data-lang-selector aria-label="Language">
+                    <option value="en">EN</option>
+                    <option value="am">አማ</option>
+                </select>
+                <a href="index.html" class="nav-link active" data-i18n="navOpenAccount">Open Account</a>
+                <a href="signin.html" class="nav-link" data-i18n="navSignIn">Sign In</a>
             </div>
-            <div class="bank-logo">TAMANGE BANK</div>
-            <div class="bank-tagline">Secure Banking. Digital Identity. Trusted Service.</div>
+            <div class="bank-logo" data-i18n="bankName">TAMANGE BANK</div>
+            <div class="bank-tagline" data-i18n="tagline">Secure Banking. Digital Identity. Trusted Service.</div>
         </div>
 
         <!-- Step 1: Welcome -->
         <div id="step-welcome" class="card">
-            <h2>Welcome to Tamange Bank</h2>
+            <h2 data-i18n="welcomeTitle">Welcome to Tamange Bank</h2>
             <div class="info-box">
-                <p><strong>Digital Identity Verification</strong></p>
-                <p>Open your bank account in minutes using your mobile driver's license or digital ID. We'll securely verify your identity using the latest digital credentials technology.</p>
+                <p><strong data-i18n="digitalIdentityVerification">Digital Identity Verification</strong></p>
+                <p data-i18n="welcomeIntro">Open your bank account in minutes using your mobile driver's license or digital ID. We'll securely verify your identity using the latest digital credentials technology.</p>
             </div>
-            <h3 style="margin: 20px 0 10px;">What you'll need:</h3>
+            <h3 style="margin: 20px 0 10px;" data-i18n="whatYouNeed">What you'll need:</h3>
             <ul style="margin-left: 20px; color: #666;">
-                <li>A mobile driver's license (mDL) or PhotoID digital credential</li>
-                <li>You must be 18 years or older</li>
-                <li>A valid email address and phone number</li>
+                <li data-i18n="needCredential">A mobile driver's license (mDL) or PhotoID digital credential</li>
+                <li data-i18n="needAge">You must be 18 years or older</li>
+                <li data-i18n="needContact">A valid email address and phone number</li>
             </ul>
-            <button id="startBtn" class="btn-primary" style="margin-top: 30px;">Start Registration</button>
+            <button id="startBtn" class="btn-primary" style="margin-top: 30px;" data-i18n="startRegistration">Start Registration</button>
         </div>
 
         <!-- Step 2: Identity Verification -->
         <div id="step-verify" class="card hidden">
             <div class="step-indicator">
-                <div class="step active">1. Verify Identity</div>
-                <div class="step">2. Account Details</div>
-                <div class="step">3. Confirmation</div>
+                <div class="step active" data-i18n="stepVerifyIdentity">1. Verify Identity</div>
+                <div class="step" data-i18n="stepAccountDetails">2. Account Details</div>
+                <div class="step" data-i18n="stepConfirmation">3. Confirmation</div>
             </div>
-            <h2>Verify Your Identity</h2>
+            <h2 data-i18n="verifyYourIdentity">Verify Your Identity</h2>
             <div class="info-box">
-                <p>Click the button below to share your digital credentials. We will request your name, date of birth, and document details.</p>
+                <p data-i18n="verifyHelpText">Click the button below to share your digital credentials. We will request your name, date of birth, and document details.</p>
             </div>
-            <button id="verifyBtn" class="btn-primary">Verify with Digital ID</button>
+            <button id="verifyBtn" class="btn-primary" data-i18n="verifyWithDigitalId">Verify with Digital ID</button>
             <div id="verifyResult" style="margin-top: 20px;"></div>
         </div>
 
         <!-- Step 3: Account Selection & Additional Details -->
         <div id="step-account" class="card hidden">
             <div class="step-indicator">
-                <div class="step completed">1. Verify Identity</div>
-                <div class="step active">2. Account Details</div>
-                <div class="step">3. Confirmation</div>
+                <div class="step completed" data-i18n="stepVerifyIdentity">1. Verify Identity</div>
+                <div class="step active" data-i18n="stepAccountDetails">2. Account Details</div>
+                <div class="step" data-i18n="stepConfirmation">3. Confirmation</div>
             </div>
-            <h2>Complete Your Registration</h2>
+            <h2 data-i18n="completeRegistration">Complete Your Registration</h2>
             
             <div id="verifiedDataDisplay" class="verified-data"></div>
 
-            <h3 style="margin-bottom: 15px;">Choose Account Type</h3>
+            <h3 style="margin-bottom: 15px;" data-i18n="chooseAccountType">Choose Account Type</h3>
             <div class="account-types">
                 <div class="account-type" data-type="checking">
-                    <h3>Checking Account</h3>
-                    <p>For everyday spending and bill payments</p>
-                    <p class="highlight">No monthly fees</p>
+                    <h3 data-i18n="checkingAccount">Checking Account</h3>
+                    <p data-i18n="checkingDesc">For everyday spending and bill payments</p>
+                    <p class="highlight" data-i18n="checkingHighlight">No monthly fees</p>
                 </div>
                 <div class="account-type" data-type="savings">
-                    <h3>Savings Account</h3>
-                    <p>Earn interest on your balance</p>
-                    <p class="highlight">2.5% APY</p>
+                    <h3 data-i18n="savingsAccount">Savings Account</h3>
+                    <p data-i18n="savingsDesc">Earn interest on your balance</p>
+                    <p class="highlight" data-i18n="savingsHighlight">2.5% APY</p>
                 </div>
             </div>
 
             <div class="form-group">
-                <label for="email">Email Address *</label>
-                <input type="email" id="email" required placeholder="you@example.com">
+                <label for="email"><span data-i18n="emailAddress">Email Address</span> *</label>
+                <input type="email" id="email" required placeholder="you@example.com" data-i18n-placeholder="placeholderEmail">
             </div>
 
             <div class="form-group">
-                <label for="phone">Phone Number *</label>
-                <input type="tel" id="phone" required placeholder="+1 (555) 123-4567">
+                <label for="phone"><span data-i18n="phoneNumber">Phone Number</span> *</label>
+                <input type="tel" id="phone" required placeholder="+1 (555) 123-4567" data-i18n-placeholder="placeholderPhone">
             </div>
 
             <div class="form-group">
-                <label for="address">Street Address *</label>
-                <input type="text" id="address" required placeholder="123 Main Street">
+                <label for="address"><span data-i18n="streetAddress">Street Address</span> *</label>
+                <input type="text" id="address" required placeholder="123 Main Street" data-i18n-placeholder="placeholderAddress">
             </div>
 
             <div class="form-group">
-                <label for="city">City *</label>
-                <input type="text" id="city" required placeholder="New York">
+                <label for="city"><span data-i18n="city">City</span> *</label>
+                <input type="text" id="city" required placeholder="New York" data-i18n-placeholder="placeholderCity">
             </div>
 
             <div class="form-group">
-                <label for="state">State <small>(Optional)</small></label>
-                <input type="text" id="state" placeholder="NY">
+                <label for="state"><span data-i18n="state">State</span> <small>(<span data-i18n="optional">Optional</span>)</small></label>
+                <input type="text" id="state" placeholder="NY" data-i18n-placeholder="placeholderState">
             </div>
 
             <div class="form-group">
-                <label for="zipCode">ZIP Code <small>(Optional)</small></label>
-                <input type="text" id="zipCode" placeholder="10001">
+                <label for="zipCode"><span data-i18n="zipCode">ZIP Code</span> <small>(<span data-i18n="optional">Optional</span>)</small></label>
+                <input type="text" id="zipCode" placeholder="10001" data-i18n-placeholder="placeholderZip">
             </div>
 
             <div class="checkbox-group">
                 <input type="checkbox" id="terms" required>
-                <label for="terms">I agree to the Terms and Conditions and Privacy Policy</label>
+                <label for="terms" data-i18n="termsAgree">I agree to the Terms and Conditions and Privacy Policy</label>
             </div>
 
-            <button id="submitBtn" class="btn-primary" disabled>Create Account</button>
+            <button id="submitBtn" class="btn-primary" disabled data-i18n="createAccount">Create Account</button>
         </div>
 
         <!-- Step 4: Success -->
         <div id="step-success" class="card hidden">
             <div class="step-indicator">
-                <div class="step completed">1. Verify Identity</div>
-                <div class="step completed">2. Account Details</div>
-                <div class="step completed">3. Confirmation</div>
+                <div class="step completed" data-i18n="stepVerifyIdentity">1. Verify Identity</div>
+                <div class="step completed" data-i18n="stepAccountDetails">2. Account Details</div>
+                <div class="step completed" data-i18n="stepConfirmation">3. Confirmation</div>
             </div>
             <div class="success-message">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <circle cx="12" cy="12" r="10" fill="#10b981"/>
                     <path d="M7 13l3 3 7-7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                <h2>Account Created Successfully!</h2>
+                <h2 data-i18n="accountCreatedSuccessfully">Account Created Successfully!</h2>
             </div>
             <div id="accountDetails" class="verified-data" style="margin-top: 30px;"></div>
             <div class="info-box" style="margin-top: 20px;">
-                <p><strong>Next Steps:</strong></p>
+                <p><strong data-i18n="nextSteps">Next Steps:</strong></p>
                 <ul style="margin-left: 20px; margin-top: 10px;">
-                    <li>Check your email for account confirmation</li>
-                    <li>Download the Tamange Bank mobile app</li>
-                    <li>Set up your online banking credentials</li>
-                    <li>Make your first deposit</li>
+                    <li data-i18n="nextCheckEmail">Check your email for account confirmation</li>
+                    <li data-i18n="nextDownloadApp">Download the Tamange Bank mobile app</li>
+                    <li data-i18n="nextSetupOnline">Set up your online banking credentials</li>
+                    <li data-i18n="nextFirstDeposit">Make your first deposit</li>
                 </ul>
             </div>
         </div>
     </div>
+    <script type="module">
+        import { initI18n } from './i18n.js';
+        initI18n();
+    </script>
     <script type="module" src="script.js"></script>
 </body>
 </html>

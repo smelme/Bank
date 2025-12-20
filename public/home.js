@@ -1,9 +1,14 @@
+import { initI18n, t } from './i18n.js';
+
+// Initialize i18n (language selector + initial translations)
+initI18n();
+
 // Check session and load account data
 async function loadAccount() {
     const sessionToken = sessionStorage.getItem('sessionToken');
 
     if (!sessionToken) {
-        showError('No active session. Please sign in.');
+        showError(t('noActiveSession'));
         return;
     }
 
@@ -19,7 +24,7 @@ async function loadAccount() {
         const result = await response.json();
 
         if (!result.success) {
-            showError(result.error || 'Failed to load account information.');
+            showError(result.error || t('failedLoadAccount'));
             return;
         }
 
@@ -27,7 +32,7 @@ async function loadAccount() {
 
     } catch (error) {
         console.error('Error loading account:', error);
-        showError('Failed to load account information. Please try again.');
+        showError(t('failedLoadAccountTryAgain'));
     }
 }
 

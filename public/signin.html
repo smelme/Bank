@@ -36,6 +36,7 @@
         .bank-logo { font-size: 2.5em; color: white; font-weight: 700; margin-bottom: 10px; letter-spacing: 1px; }
         .bank-tagline { color: rgba(255,255,255,0.9); font-size: 1.1em; font-weight: 300; }
         .nav-links { position: absolute; top: 20px; right: 30px; display: flex; gap: 15px; }
+    .lang-select { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.35); padding: 8px 10px; border-radius: 6px; font-size: 0.9em; font-weight: 600; }
         .nav-link { color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9em; font-weight: 500; transition: background 0.3s; }
         .nav-link:hover { background: rgba(255,255,255,0.2); }
         .nav-link.active { background: rgba(255,255,255,0.3); }
@@ -77,6 +78,7 @@
             .bank-tagline { font-size: 0.95em; }
             .nav-links { position: static; justify-content: center; margin-bottom: 20px; width: 100%; }
             .nav-link { padding: 6px 12px; font-size: 0.85em; }
+            .lang-select { padding: 6px 10px; font-size: 0.85em; }
             .card { padding: 25px 20px; }
             h2 { font-size: 1.4em; }
             h3 { font-size: 1.1em; }
@@ -93,6 +95,7 @@
             .bank-tagline { font-size: 0.85em; }
             .nav-links { flex-direction: column; gap: 8px; }
             .nav-link { width: 100%; text-align: center; }
+            .lang-select { width: 100%; text-align: center; }
             .card { padding: 20px 15px; }
             h2 { font-size: 1.2em; }
             ul { margin-left: 15px; font-size: 0.9em; }
@@ -103,39 +106,43 @@
     <div class="container">
         <div class="bank-header">
             <div class="nav-links">
-                <a href="index.html" class="nav-link">Open Account</a>
-                <a href="signin.html" class="nav-link active">Sign In</a>
+                <select class="lang-select" data-lang-selector aria-label="Language">
+                    <option value="en">EN</option>
+                    <option value="am">አማ</option>
+                </select>
+                <a href="index.html" class="nav-link" data-i18n="navOpenAccount">Open Account</a>
+                <a href="signin.html" class="nav-link active" data-i18n="navSignIn">Sign In</a>
             </div>
-            <div class="bank-logo">TAMANGE BANK</div>
-            <div class="bank-tagline">Secure Banking. Digital Identity. Trusted Service.</div>
+            <div class="bank-logo" data-i18n="bankName">TAMANGE BANK</div>
+            <div class="bank-tagline" data-i18n="tagline">Secure Banking. Digital Identity. Trusted Service.</div>
         </div>
 
         <!-- Step 1: Welcome & Digital ID Verification -->
         <div id="step-verify" class="card">
-            <h2>Sign In to Your Account</h2>
+            <h2 data-i18n="signInToYourAccount">Sign In to Your Account</h2>
             <div class="info-box">
-                <p><strong>Secure Sign-In with Digital ID</strong></p>
-                <p>Sign in securely using your mobile driver's license (mDL) or PhotoID digital credential. We'll verify your identity and then confirm it's really you with facial recognition.</p>
+                <p><strong data-i18n="secureSignInWithDigitalId">Secure Sign-In with Digital ID</strong></p>
+                <p data-i18n="signInIntro">Sign in securely using your mobile driver's license (mDL) or PhotoID digital credential. We'll verify your identity and then confirm it's really you with facial recognition.</p>
             </div>
-            <h3>How it works:</h3>
+            <h3 data-i18n="howItWorks">How it works:</h3>
             <ul>
-                <li>Verify your digital ID credentials (mDL or PhotoID)</li>
-                <li>Confirm your identity with facial recognition</li>
-                <li>Access your account securely</li>
+                <li data-i18n="howStep1">Verify your digital ID credentials (mDL or PhotoID)</li>
+                <li data-i18n="howStep2">Confirm your identity with facial recognition</li>
+                <li data-i18n="howStep3">Access your account securely</li>
             </ul>
-            <button id="verifyBtn" class="btn-primary" style="margin-top: 30px;">Sign In with Digital ID</button>
+            <button id="verifyBtn" class="btn-primary" style="margin-top: 30px;" data-i18n="signInWithDigitalId">Sign In with Digital ID</button>
             <div id="verifyResult" style="margin-top: 20px;"></div>
         </div>
 
         <!-- Step 2: Biometric Verification -->
         <div id="step-biometric" class="card hidden">
-            <h2>Facial Recognition Verification</h2>
+            <h2 data-i18n="facialRecognitionVerification">Facial Recognition Verification</h2>
             
             <div id="verifiedDataDisplay" class="verified-data"></div>
 
             <div class="info-box">
-                <p><strong>Verify Your Identity</strong></p>
-                <p>To ensure it's really you, we need to compare your face with the photo on your digital ID. Click "Start Camera" and position your face in the frame.</p>
+                <p><strong data-i18n="verifyYourIdentity">Verify Your Identity</strong></p>
+                <p data-i18n="biometricHelp">To ensure it's really you, we need to compare your face with the photo on your digital ID. Click "Start Camera" and position your face in the frame.</p>
             </div>
 
             <div class="camera-section">
@@ -149,9 +156,9 @@
                 
                 <canvas id="canvas"></canvas>
                 
-                <button id="startCameraBtn" class="btn-primary">Start Camera</button>
-                <button id="captureBtn" class="btn-secondary hidden">Capture & Verify</button>
-                <button id="retakeBtn" class="btn-primary hidden">Retake Photo</button>
+                <button id="startCameraBtn" class="btn-primary" data-i18n="startCamera">Start Camera</button>
+                <button id="captureBtn" class="btn-secondary hidden" data-i18n="captureAndVerify">Capture & Verify</button>
+                <button id="retakeBtn" class="btn-primary hidden" data-i18n="retakePhoto">Retake Photo</button>
             </div>
 
             <div id="biometricResult" style="margin-top: 20px;"></div>
@@ -159,12 +166,16 @@
 
         <!-- Step 3: Error Display -->
         <div id="step-error" class="card hidden">
-            <h2>Sign-In Failed</h2>
+            <h2 data-i18n="signInFailed">Sign-In Failed</h2>
             <div id="errorMessage" class="error-box"></div>
-            <button onclick="location.reload()" class="btn-primary">Try Again</button>
+            <button onclick="location.reload()" class="btn-primary" data-i18n="tryAgain">Try Again</button>
         </div>
     </div>
 
+    <script type="module">
+        import { initI18n } from './i18n.js';
+        initI18n();
+    </script>
     <script type="module" src="signin.js"></script>
 </body>
 </html>

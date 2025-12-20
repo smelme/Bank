@@ -1,5 +1,6 @@
 import { requestCredentials } from '/lib/id-verifier.min.js';
 import * as faceapi from '/node_modules/@vladmandic/face-api/dist/face-api.esm.js';
+import { initI18n, t } from './i18n.js';
 
 let verificationToken = null;
 let videoStream = null;
@@ -24,6 +25,9 @@ async function loadModels() {
 // Initialize models on page load
 loadModels();
 
+// Initialize i18n (language selector + initial translations)
+initI18n();
+
 // Show/hide steps
 function showStep(stepId) {
     document.querySelectorAll('.card').forEach(card => card.classList.add('hidden'));
@@ -47,21 +51,21 @@ function displayVerifiedData(claims) {
 // Step 1: Verify Digital ID
 document.getElementById('verifyBtn').addEventListener('click', async () => {
     const resultDiv = document.getElementById('verifyResult');
-    resultDiv.innerHTML = '<div class="loading">Initializing verification...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('loadingInitVerification')}</div>`;
 
     try {
         // 1. Get request parameters from backend
-        resultDiv.innerHTML = '<div class="loading">Fetching request parameters...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('loadingFetchParams')}</div>`;
         const paramsResponse = await fetch('/request-params');
-        if (!paramsResponse.ok) throw new Error('Failed to get params');
+    if (!paramsResponse.ok) throw new Error(t('failedToGetParams'));
         const { requestParams, nonce } = await paramsResponse.json();
 
         // 2. Request credentials from wallet (DCAPI)
-        resultDiv.innerHTML = '<div class="loading">Requesting credentials from wallet...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('loadingRequestWallet')}</div>`;
         const credentials = await requestCredentials(requestParams);
 
         // 3. Send credentials to backend for verification
-        resultDiv.innerHTML = '<div class="loading">Verifying digital ID...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('verifyingDigitalId')}</div>`;
         const verifyResponse = await fetch('/signin-verify', {
             method: 'POST',
             headers: {
@@ -73,7 +77,7 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
         const result = await verifyResponse.json();
         
         if (!result.success) {
-            throw new Error(result.error || 'Verification failed');
+            throw new Error(result.error || t('verificationFailed'));
         }
 
         // Store verification token and portrait image data
@@ -83,7 +87,7 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
         showStep('step-biometric');
 
     } catch (error) {
-        resultDiv.innerHTML = `<div class="error-box">Error: ${error.message}</div>`;
+        resultDiv.innerHTML = `<div class="error-box">${t('errorPrefix')} ${error.message}</div>`;
         console.error(error);
     }
 });
@@ -93,7 +97,7 @@ document.getElementById('startCameraBtn').addEventListener('click', async () => 
     const statusDiv = document.getElementById('cameraStatus');
     
     try {
-        statusDiv.innerHTML = '<div class="loading">Requesting camera access...</div>';
+    statusDiv.innerHTML = `<div class="loading">${t('requestingCameraAccess')}</div>`;
         
         // Request camera access
         videoStream = await navigator.mediaDevices.getUserMedia({
@@ -111,11 +115,11 @@ document.getElementById('startCameraBtn').addEventListener('click', async () => 
         document.getElementById('videoContainer').classList.remove('hidden');
         document.getElementById('startCameraBtn').classList.add('hidden');
         document.getElementById('captureBtn').classList.remove('hidden');
-        statusDiv.innerHTML = '<div class="info-box"><p><strong>Camera Active</strong></p><p>Position your face in the center of the frame and click "Capture & Verify".</p></div>';
+    statusDiv.innerHTML = `<div class="info-box"><p><strong>${t('cameraActiveTitle')}</strong></p><p>${t('cameraActiveHelp')}</p></div>`;
 
     } catch (error) {
         console.error('Camera access error:', error);
-        statusDiv.innerHTML = `<div class="error-box"><strong>Camera Access Denied</strong><br>${error.message}<br>Please allow camera access to continue.</div>`;
+        statusDiv.innerHTML = `<div class="error-box"><strong>${t('cameraAccessDenied')}</strong><br>${error.message}<br>${t('allowCameraAccess')}</div>`;
     }
 });
 
@@ -151,7 +155,7 @@ document.getElementById('captureBtn').addEventListener('click', () => {
     document.getElementById('retakeBtn').classList.remove('hidden');
 
     // Show verification message
-    document.getElementById('cameraStatus').innerHTML = '<div class="loading">Photo captured. Verifying your identity...</div>';
+    document.getElementById('cameraStatus').innerHTML = `<div class="loading">${t('photoCapturedVerifying')}</div>`;
 
     // Automatically verify
     verifyBiometric();
@@ -177,37 +181,37 @@ async function verifyBiometric() {
         }
 
         if (!modelsLoaded) {
-            throw new Error('Face recognition models are still loading. Please wait...');
+            throw new Error(t('faceModelsLoading'));
         }
 
-        resultDiv.innerHTML = '<div class="loading">Detecting face in your photo...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('detectingFace')}</div>`;
 
         // Create image elements
         const capturedImg = await faceapi.fetchImage(capturedImageData);
         const portraitImg = await faceapi.fetchImage(portraitImageData);
 
         // Extract face descriptors
-        resultDiv.innerHTML = '<div class="loading">Analyzing ID portrait...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('analyzingIdPortrait')}</div>`;
         const portraitDetection = await faceapi
             .detectSingleFace(portraitImg)
             .withFaceLandmarks()
             .withFaceDescriptor();
 
         if (!portraitDetection) {
-            throw new Error('Could not detect face in your digital ID portrait.');
+            throw new Error(t('couldNotDetectIdFace'));
         }
 
-        resultDiv.innerHTML = '<div class="loading">Analyzing captured photo...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('analyzingCapturedPhoto')}</div>`;
         const capturedDetection = await faceapi
             .detectSingleFace(capturedImg)
             .withFaceLandmarks()
             .withFaceDescriptor();
 
         if (!capturedDetection) {
-            throw new Error('Could not detect your face in the captured photo. Please ensure your face is clearly visible and try again.');
+            throw new Error(t('couldNotDetectCapturedFace'));
         }
 
-        resultDiv.innerHTML = '<div class="loading">Comparing faces...</div>';
+    resultDiv.innerHTML = `<div class="loading">${t('comparingFaces')}</div>`;
 
         // Send descriptors to server for verification
         const response = await fetch('/biometric-verify', {
@@ -226,7 +230,7 @@ async function verifyBiometric() {
 
         if (!result.success) {
             // Show error
-            document.getElementById('errorMessage').innerHTML = `<p><strong>Verification Failed</strong></p><p>${result.error}</p>`;
+            document.getElementById('errorMessage').innerHTML = `<p><strong>${t('verificationFailedTitle')}</strong></p><p>${result.error}</p>`;
             showStep('step-error');
             return;
         }
@@ -237,6 +241,6 @@ async function verifyBiometric() {
 
     } catch (error) {
         console.error('Biometric verification error:', error);
-        resultDiv.innerHTML = `<div class="error-box">Error: ${error.message}</div>`;
+        resultDiv.innerHTML = `<div class="error-box">${t('errorPrefix')} ${error.message}</div>`;
     }
 }
