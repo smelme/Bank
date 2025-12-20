@@ -129,8 +129,10 @@ app.post('/verify', async (req, res) => {
         const { credentials, nonce } = req.body;
         
         console.log('Received verification request for nonce:', nonce);
+        console.log('ORIGIN env var:', process.env.ORIGIN);
 
         if (!nonce || !sessionStore.has(nonce)) {
+            console.error('Invalid or expired nonce:', nonce);
             return res.status(400).json({ success: false, error: 'Invalid or expired nonce' });
         }
 
@@ -139,6 +141,8 @@ app.post('/verify', async (req, res) => {
         // Clean up used nonce (prevent replay)
         sessionStore.delete(nonce);
 
+        console.log('Processing credentials with origin:', process.env.ORIGIN || 'http://localhost:3001');
+        
         const result = await processCredentials(credentials, {
             nonce,
             jwk,
@@ -183,7 +187,9 @@ app.post('/verify', async (req, res) => {
 
     } catch (error) {
         console.error('Verification failed:', error);
-        res.status(500).json({ success: false, error: error.message });
+        console.error('Error stack:', error.stack);
+        console.error('Error details:', JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        res.status(500).json({ success: false, error: error.message, details: error.toString() });
     }
 });
 
