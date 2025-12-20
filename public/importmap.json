@@ -1,0 +1,22 @@
+{
+  "imports": {
+    "trusted-issuer-registry": "/node_modules/trusted-issuer-registry/build/trusted-issuer-registry.js",
+    "asn1js": "/node_modules/asn1js/build/index.es.js",
+    "pkijs": "/node_modules/pkijs/build/index.es.js",
+    "cbor2": "/node_modules/cbor2/lib/index.js",
+    "@hpke/core": "/node_modules/@hpke/core/esm/mod.js",
+    "pvtsutils": "/node_modules/pvtsutils/build/index.es.js",
+    "pvutils": "/node_modules/pvutils/build/utils.es.js",
+    "bytestreamjs": "/node_modules/bytestreamjs/build/mjs/index.js",
+    "@noble/hashes/sha1": "/node_modules/@noble/hashes/esm/sha1.js",
+    "@noble/hashes/sha2": "/node_modules/@noble/hashes/esm/sha2.js",
+    "@noble/hashes/utils": "/node_modules/@noble/hashes/esm/utils.js",
+    "@noble/hashes/crypto": "/node_modules/@noble/hashes/esm/crypto.js",
+    "@noble/hashes/_assert": "/node_modules/@noble/hashes/esm/_assert.js",
+    "@noble/hashes/_u64": "/node_modules/@noble/hashes/esm/_u64.js",
+    "@noble/hashes/_md": "/node_modules/@noble/hashes/esm/_md.js",
+    "canonical-json": "/node_modules/canonical-json/index.js",
+    "@cto.af/wtf8": "/node_modules/@cto.af/wtf8/lib/index.js",
+    "@hpke/common": "/node_modules/@hpke/common/esm/mod.js"
+  }
+}

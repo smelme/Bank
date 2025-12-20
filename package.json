@@ -1,0 +1,26 @@
+{
+  "name": "verifier",
+  "version": "1.0.0",
+  "description": "Tamange Bank - Digital ID Verification and Biometric Authentication",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  },
+  "keywords": ["digital-id", "biometric", "face-recognition", "mDL", "PhotoID"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@vladmandic/face-api": "^1.7.15",
+    "body-parser": "^2.2.1",
+    "canvas": "^3.2.0",
+    "cbor2": "^2.0.1",
+    "cors": "^2.8.5",
+    "express": "^5.2.1",
+    "id-verifier": "^0.1.0"
+  }
+}

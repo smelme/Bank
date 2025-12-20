@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamange Bank - Home</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .bank-header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); border-radius: 12px; padding: 30px 40px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: flex; justify-content: space-between; align-items: center; }
+        .bank-logo { font-size: 2em; color: white; font-weight: 700; letter-spacing: 1px; }
+        .user-section { color: white; text-align: right; }
+        .user-name { font-size: 1.1em; margin-bottom: 5px; }
+        .logout-btn { background: rgba(255,255,255,0.2); color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: background 0.3s; }
+        .logout-btn:hover { background: rgba(255,255,255,0.3); }
+        .dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .card { background: white; border-radius: 12px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .card h2 { color: #1f2937; margin-bottom: 20px; font-size: 1.5em; }
+        .card h3 { color: #374151; font-size: 1.2em; margin-bottom: 15px; }
+        .account-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 2px solid #e5e7eb; }
+        .account-number { color: #6b7280; font-size: 0.9em; }
+        .account-type { color: #3b82f6; font-weight: 600; text-transform: capitalize; }
+        .balance-section { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
+        .balance-label { font-size: 0.9em; opacity: 0.9; margin-bottom: 5px; }
+        .balance-amount { font-size: 2.5em; font-weight: 700; }
+        .info-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e5e7eb; }
+        .info-item:last-child { border-bottom: none; }
+        .info-label { color: #6b7280; font-weight: 500; }
+        .info-value { color: #1f2937; font-weight: 600; }
+        .quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .action-btn { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-size: 0.95em; font-weight: 600; transition: all 0.3s; }
+        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+        .recent-activity { margin-top: 30px; }
+        .activity-item { display: flex; justify-content: space-between; padding: 15px; border-radius: 8px; background: #f9fafb; margin-bottom: 10px; }
+        .activity-desc { color: #374151; font-weight: 500; }
+        .activity-date { color: #6b7280; font-size: 0.9em; }
+        .sidebar-card { margin-bottom: 20px; }
+        .sidebar-card:last-child { margin-bottom: 0; }
+        .loading { text-align: center; padding: 40px; color: #3b82f6; font-size: 1.1em; }
+        .error { background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(252,165,165,0.1) 100%); border: 2px solid #ef4444; padding: 20px; border-radius: 10px; color: #991b1b; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="bank-header">
+            <div class="bank-logo">TAMANGE BANK</div>
+            <div class="user-section">
+                <div class="user-name" id="userName">Loading...</div>
+                <button class="logout-btn" id="logoutBtn">Sign Out</button>
+            </div>
+        </div>
+
+        <div id="loadingSection" class="card loading">
+            Loading your account information...
+        </div>
+
+        <div id="errorSection" class="card error" style="display: none;">
+            <h3>Access Denied</h3>
+            <p id="errorMessage">Please sign in to access your account.</p>
+            <button onclick="window.location.href='signin.html'" class="action-btn" style="margin-top: 20px; width: 100%;">Sign In</button>
+        </div>
+
+        <div id="dashboardSection" class="dashboard" style="display: none;">
+            <!-- Main Account Section -->
+            <div>
+                <div class="card">
+                    <div class="account-header">
+                        <div>
+                            <h2 id="accountHolderName">Account Holder</h2>
+                            <div class="account-number">Account: <span id="accountNumber">-</span></div>
+                        </div>
+                        <div class="account-type" id="accountType">-</div>
+                    </div>
+
+                    <div class="balance-section">
+                        <div class="balance-label">Available Balance</div>
+                        <div class="balance-amount" id="accountBalance">$0.00</div>
+                    </div>
+
+                    <h3>Quick Actions</h3>
+                    <div class="quick-actions">
+                        <button class="action-btn">Transfer Money</button>
+                        <button class="action-btn">Pay Bills</button>
+                        <button class="action-btn">Deposit Check</button>
+                        <button class="action-btn">View Statements</button>
+                    </div>
+                </div>
+
+                <div class="card recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div id="activityList">
+                        <div class="activity-item">
+                            <span class="activity-desc">Account Opened</span>
+                            <span class="activity-date" id="accountCreatedDate">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div>
+                <div class="card sidebar-card">
+                    <h3>Account Details</h3>
+                    <div class="info-item">
+                        <span class="info-label">Email</span>
+                        <span class="info-value" id="accountEmail">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Phone</span>
+                        <span class="info-value" id="accountPhone">-</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Member Since</span>
+                        <span class="info-value" id="memberSince">-</span>
+                    </div>
+                </div>
+
+                <div class="card sidebar-card">
+                    <h3>Security</h3>
+                    <div class="info-item">
+                        <span class="info-label">Authentication</span>
+                        <span class="info-value" style="color: #10b981;">Digital ID</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Biometric</span>
+                        <span class="info-value" style="color: #10b981;">Enabled</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="home.js"></script>
+</body>
+</html>

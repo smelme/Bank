@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tamange Bank - Account Registration</title>
+    <script type="importmap">
+    {
+        "imports": {
+            "trusted-issuer-registry": "/node_modules/trusted-issuer-registry/build/trusted-issuer-registry.js",
+            "asn1js": "/node_modules/asn1js/build/index.es.js",
+            "pkijs": "/node_modules/pkijs/build/index.es.js",
+            "cbor2": "/node_modules/cbor2/lib/index.js",
+            "@hpke/core": "/node_modules/@hpke/core/esm/mod.js",
+            "pvtsutils": "/node_modules/pvtsutils/build/index.es.js",
+            "pvutils": "/node_modules/pvutils/build/utils.es.js",
+            "bytestreamjs": "/node_modules/bytestreamjs/build/mjs/index.js",
+            "@noble/hashes/sha1": "/node_modules/@noble/hashes/esm/sha1.js",
+            "@noble/hashes/sha2": "/node_modules/@noble/hashes/esm/sha2.js",
+            "@noble/hashes/utils": "/node_modules/@noble/hashes/esm/utils.js",
+            "@noble/hashes/crypto": "/node_modules/@noble/hashes/esm/crypto.js",
+            "@noble/hashes/_assert": "/node_modules/@noble/hashes/esm/_assert.js",
+            "@noble/hashes/_u64": "/node_modules/@noble/hashes/esm/_u64.js",
+            "@noble/hashes/_md": "/node_modules/@noble/hashes/esm/_md.js",
+            "canonical-json": "/node_modules/canonical-json/index.js",
+            "@cto.af/wtf8": "/node_modules/@cto.af/wtf8/lib/index.js",
+            "@hpke/common": "/node_modules/@hpke/common/esm/mod.js"
+        }
+    }
+    </script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .bank-header { background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); border-radius: 12px; padding: 40px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); text-align: center; position: relative; }
+        .bank-logo { font-size: 2.5em; color: white; font-weight: 700; margin-bottom: 10px; letter-spacing: 1px; }
+        .bank-tagline { color: rgba(255,255,255,0.9); font-size: 1.1em; font-weight: 300; }
+        .nav-links { position: absolute; top: 20px; right: 30px; display: flex; gap: 15px; }
+        .nav-link { color: white; text-decoration: none; padding: 8px 16px; border-radius: 6px; font-size: 0.9em; font-weight: 500; transition: background 0.3s; }
+        .nav-link:hover { background: rgba(255,255,255,0.2); }
+        .nav-link.active { background: rgba(255,255,255,0.3); }
+        .card { background: white; border-radius: 12px; padding: 40px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .step-indicator { display: flex; justify-content: space-between; margin-bottom: 40px; padding: 0 20px; }
+        .step { flex: 1; text-align: center; padding: 10px; position: relative; color: #9ca3af; font-size: 0.9em; font-weight: 500; }
+        .step.active { color: #3b82f6; font-weight: 600; }
+        .step.completed { color: #10b981; font-weight: 600; }
+        .step::before { content: ''; width: 30px; height: 30px; border-radius: 50%; background: #e5e7eb; position: absolute; top: -40px; left: 50%; transform: translateX(-50%); border: 3px solid white; }
+        .step.active::before { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        .step.completed::before { background: linear-gradient(135deg, #10b981, #059669); }
+        .step::after { content: ''; position: absolute; top: -25px; right: -50%; width: 100%; height: 3px; background: #e5e7eb; z-index: -1; }
+        .step:last-child::after { display: none; }
+        .step.completed::after { background: linear-gradient(90deg, #10b981, #3b82f6); }
+        h2 { color: #1f2937; margin-bottom: 20px; font-size: 1.8em; font-weight: 700; }
+        h3 { color: #374151; font-size: 1.2em; font-weight: 600; }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; padding: 16px 32px; font-size: 16px; font-weight: 600; border-radius: 8px; cursor: pointer; width: 100%; transition: all 0.3s; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(59,130,246,0.4); }
+        .btn-primary:disabled { background: #d1d5db; cursor: not-allowed; transform: none; box-shadow: none; }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #374151; font-weight: 600; font-size: 0.95em; }
+        .form-group input, .form-group select { width: 100%; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 8px; font-size: 15px; transition: all 0.2s; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .form-group small { color: #6b7280; font-size: 0.85em; display: block; margin-top: 4px; }
+        .account-types { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .account-type { border: 2px solid #e5e7eb; padding: 24px; border-radius: 12px; cursor: pointer; text-align: center; transition: all 0.3s; background: #fafafa; }
+        .account-type:hover { border-color: #3b82f6; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(59,130,246,0.1); }
+        .account-type.selected { border-color: #3b82f6; background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(147,197,253,0.1) 100%); box-shadow: 0 4px 12px rgba(59,130,246,0.2); }
+        .account-type h3 { color: #1f2937; margin-bottom: 10px; font-size: 1.3em; }
+        .account-type p { color: #6b7280; font-size: 0.95em; margin-bottom: 8px; }
+        .account-type .highlight { color: #3b82f6; font-weight: 700; font-size: 1.1em; margin-top: 12px; }
+        .info-box { background: linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(147,197,253,0.1) 100%); padding: 20px; border-radius: 10px; margin-bottom: 25px; border-left: 4px solid #3b82f6; }
+        .info-box p { color: #374151; line-height: 1.6; }
+        .info-box strong { color: #1f2937; }
+        .verified-data { background: linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(52,211,153,0.1) 100%); border: 2px solid #10b981; padding: 20px; border-radius: 10px; margin-bottom: 25px; }
+        .verified-data h3 { color: #059669; margin-bottom: 15px; font-size: 1.3em; }
+        .data-item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(229,231,235,0.5); }
+        .data-item:last-child { border-bottom: none; }
+        .data-label { font-weight: 600; color: #6b7280; }
+        .data-value { color: #1f2937; font-weight: 500; }
+        .error-box { background: linear-gradient(135deg, rgba(239,68,68,0.1) 0%, rgba(252,165,165,0.1) 100%); border: 2px solid #ef4444; padding: 20px; border-radius: 10px; color: #991b1b; margin-bottom: 25px; }
+        .checkbox-group { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 25px; }
+        .checkbox-group input[type="checkbox"] { width: 20px; height: 20px; margin-top: 2px; cursor: pointer; }
+        .checkbox-group label { color: #374151; font-size: 0.95em; cursor: pointer; }
+        .hidden { display: none; }
+        .portrait { max-width: 150px; border-radius: 12px; margin: 15px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .loading { text-align: center; color: #3b82f6; padding: 20px; font-weight: 500; }
+        .success-message { text-align: center; padding: 30px; }
+        .success-message svg { width: 80px; height: 80px; margin-bottom: 20px; }
+        .success-message h2 { color: #10b981; margin-bottom: 10px; }
+        ul { line-height: 1.8; color: #4b5563; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="bank-header">
+            <div class="nav-links">
+                <a href="index.html" class="nav-link active">Open Account</a>
+                <a href="signin.html" class="nav-link">Sign In</a>
+            </div>
+            <div class="bank-logo">TAMANGE BANK</div>
+            <div class="bank-tagline">Secure Banking. Digital Identity. Trusted Service.</div>
+        </div>
+
+        <!-- Step 1: Welcome -->
+        <div id="step-welcome" class="card">
+            <h2>Welcome to Tamange Bank</h2>
+            <div class="info-box">
+                <p><strong>Digital Identity Verification</strong></p>
+                <p>Open your bank account in minutes using your mobile driver's license or digital ID. We'll securely verify your identity using the latest digital credentials technology.</p>
+            </div>
+            <h3 style="margin: 20px 0 10px;">What you'll need:</h3>
+            <ul style="margin-left: 20px; color: #666;">
+                <li>A mobile driver's license (mDL) or PhotoID digital credential</li>
+                <li>You must be 18 years or older</li>
+                <li>A valid email address and phone number</li>
+            </ul>
+            <button id="startBtn" class="btn-primary" style="margin-top: 30px;">Start Registration</button>
+        </div>
+
+        <!-- Step 2: Identity Verification -->
+        <div id="step-verify" class="card hidden">
+            <div class="step-indicator">
+                <div class="step active">1. Verify Identity</div>
+                <div class="step">2. Account Details</div>
+                <div class="step">3. Confirmation</div>
+            </div>
+            <h2>Verify Your Identity</h2>
+            <div class="info-box">
+                <p>Click the button below to share your digital credentials. We will request your name, date of birth, and document details.</p>
+            </div>
+            <button id="verifyBtn" class="btn-primary">Verify with Digital ID</button>
+            <div id="verifyResult" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Step 3: Account Selection & Additional Details -->
+        <div id="step-account" class="card hidden">
+            <div class="step-indicator">
+                <div class="step completed">1. Verify Identity</div>
+                <div class="step active">2. Account Details</div>
+                <div class="step">3. Confirmation</div>
+            </div>
+            <h2>Complete Your Registration</h2>
+            
+            <div id="verifiedDataDisplay" class="verified-data"></div>
+
+            <h3 style="margin-bottom: 15px;">Choose Account Type</h3>
+            <div class="account-types">
+                <div class="account-type" data-type="checking">
+                    <h3>Checking Account</h3>
+                    <p>For everyday spending and bill payments</p>
+                    <p class="highlight">No monthly fees</p>
+                </div>
+                <div class="account-type" data-type="savings">
+                    <h3>Savings Account</h3>
+                    <p>Earn interest on your balance</p>
+                    <p class="highlight">2.5% APY</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email Address *</label>
+                <input type="email" id="email" required placeholder="you@example.com">
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone Number *</label>
+                <input type="tel" id="phone" required placeholder="+1 (555) 123-4567">
+            </div>
+
+            <div class="form-group">
+                <label for="address">Street Address *</label>
+                <input type="text" id="address" required placeholder="123 Main Street">
+            </div>
+
+            <div class="form-group">
+                <label for="city">City *</label>
+                <input type="text" id="city" required placeholder="New York">
+            </div>
+
+            <div class="form-group">
+                <label for="state">State <small>(Optional)</small></label>
+                <input type="text" id="state" placeholder="NY">
+            </div>
+
+            <div class="form-group">
+                <label for="zipCode">ZIP Code <small>(Optional)</small></label>
+                <input type="text" id="zipCode" placeholder="10001">
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="terms" required>
+                <label for="terms">I agree to the Terms and Conditions and Privacy Policy</label>
+            </div>
+
+            <button id="submitBtn" class="btn-primary" disabled>Create Account</button>
+        </div>
+
+        <!-- Step 4: Success -->
+        <div id="step-success" class="card hidden">
+            <div class="step-indicator">
+                <div class="step completed">1. Verify Identity</div>
+                <div class="step completed">2. Account Details</div>
+                <div class="step completed">3. Confirmation</div>
+            </div>
+            <div class="success-message">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" fill="#10b981"/>
+                    <path d="M7 13l3 3 7-7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2>Account Created Successfully!</h2>
+            </div>
+            <div id="accountDetails" class="verified-data" style="margin-top: 30px;"></div>
+            <div class="info-box" style="margin-top: 20px;">
+                <p><strong>Next Steps:</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Check your email for account confirmation</li>
+                    <li>Download the Tamange Bank mobile app</li>
+                    <li>Set up your online banking credentials</li>
+                    <li>Make your first deposit</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
