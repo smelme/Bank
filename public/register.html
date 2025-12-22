@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-i18n="regTitle">Tamange Bank - Account Registration</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+Ethiopic:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Keep same importmap used by the existing registration flow (public/script.js) -->
+    <script type="importmap">
+    {
+        "imports": {
+            "trusted-issuer-registry": "/node_modules/trusted-issuer-registry/build/trusted-issuer-registry.js",
+            "asn1js": "/node_modules/asn1js/build/index.es.js",
+            "pkijs": "/node_modules/pkijs/build/index.es.js",
+            "cbor2": "/node_modules/cbor2/lib/index.js",
+            "@hpke/core": "/node_modules/@hpke/core/esm/mod.js",
+            "pvtsutils": "/node_modules/pvtsutils/build/index.es.js",
+            "pvutils": "/node_modules/pvutils/build/utils.es.js",
+            "bytestreamjs": "/node_modules/bytestreamjs/build/mjs/index.js",
+            "@noble/hashes/sha1": "/node_modules/@noble/hashes/esm/sha1.js",
+            "@noble/hashes/sha2": "/node_modules/@noble/hashes/esm/sha2.js",
+            "@noble/hashes/utils": "/node_modules/@noble/hashes/esm/utils.js",
+            "@noble/hashes/crypto": "/node_modules/@noble/hashes/esm/crypto.js",
+            "@noble/hashes/_assert": "/node_modules/@noble/hashes/esm/_assert.js",
+            "@noble/hashes/_u64": "/node_modules/@noble/hashes/esm/_u64.js",
+            "@noble/hashes/_md": "/node_modules/@noble/hashes/esm/_md.js",
+            "canonical-json": "/node_modules/canonical-json/index.js",
+            "@cto.af/wtf8": "/node_modules/@cto.af/wtf8/lib/index.js",
+            "@hpke/common": "/node_modules/@hpke/common/esm/mod.js"
+        }
+    }
+    </script>
+
+    <!-- Registration UI uses the app's shared styling -->
+    <link rel="stylesheet" href="/styles.css">
+
+    <!-- Some registration-specific helpers that existed previously -->
+    <style>
+        .hidden { display: none !important; }
+        .loading { text-align: center; color: var(--text-secondary, #ccc); padding: 16px; }
+        .info-box { border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); border-radius: 16px; padding: 14px; color: rgba(255,255,255,0.72); }
+        .verified-data { border: 1px solid rgba(52,211,153,0.30); background: rgba(52,211,153,0.08); border-radius: 16px; padding: 14px; }
+        .error-box { border: 1px solid rgba(251,113,133,0.30); background: rgba(251,113,133,0.10); border-radius: 16px; padding: 14px; }
+
+        /* Registration page layout wrapper */
+        .registration-wrap { max-width: 980px; margin: 0 auto; padding: 18px 18px 40px; }
+
+        /* Give the old registration UI a reasonable look with the new theme */
+        .card { background: linear-gradient(135deg, rgba(42,42,42,0.92), rgba(26,26,26,0.92)); border: 1px solid rgba(212,175,55,0.30); border-radius: 16px; padding: 22px; box-shadow: 0 12px 32px rgba(0,0,0,0.45); margin-top: 18px; }
+        body.light-theme .card { background: #fff; }
+        .btn-primary { width: 100%; border-radius: 14px; padding: 12px 14px; font-weight: 800; border: 1px solid rgba(247,211,106,0.55); background: linear-gradient(135deg, rgba(247,211,106,0.95), rgba(199,154,43,0.95)); color: #1a1200; cursor: pointer; }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+        .form-group { margin-top: 14px; }
+        .form-group label { color: rgba(255,255,255,0.82); font-size: 13px; font-weight: 650; display: block; margin-bottom: 6px; }
+        body.light-theme .form-group label { color: rgba(10,10,10,0.75); }
+        .form-group input { width: 100%; border-radius: 14px; padding: 12px 12px; border: 1px solid rgba(255,255,255,0.13); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.92); outline: none; }
+        body.light-theme .form-group input { background: rgba(0,0,0,0.03); color: rgba(10,10,10,0.92); border-color: rgba(0,0,0,0.08); }
+        .account-types { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .account-type { border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.04); border-radius: 16px; padding: 16px; cursor: pointer; transition: transform 120ms ease, background 120ms ease, border-color 120ms ease; }
+        body.light-theme .account-type { background: rgba(0,0,0,0.02); border-color: rgba(0,0,0,0.06); }
+        .account-type.selected { border-color: rgba(247,211,106,0.45); background: rgba(247,211,106,0.08); }
+        .checkbox-group { display: flex; gap: 10px; align-items: flex-start; margin-top: 14px; color: rgba(255,255,255,0.78); }
+        body.light-theme .checkbox-group { color: rgba(10,10,10,0.78); }
+
+        @media (max-width: 860px) { .account-types { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <div class="registration-wrap">
+        <!-- Shared header (matches public/index.html) -->
+        <header>
+            <div class="container">
+                <div class="header-content">
+                    <a href="/index.html" style="text-decoration:none;">
+                        <div class="logo-container">
+                            <div class="logo-symbol" aria-hidden="true"></div>
+                            <div class="logo-text">
+                                <div class="logo-main amharic-text">ታማኝ ባንክ</div>
+                                <div class="logo-tagline" data-i18n="tagline">Secure Banking. Digital Identity. Trusted Service.</div>
+                            </div>
+                        </div>
+                    </a>
+
+                    <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Menu">
+                        <i class="fas fa-bars" aria-hidden="true"></i>
+                    </button>
+
+                    <a class="cta-button" href="/register.html" data-en="Open Account" data-am="አካውንት ይክፈቱ">Open Account</a>
+
+                    <div class="theme-toggle-container">
+                        <i class="fas fa-moon theme-icon" aria-hidden="true"></i>
+                        <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle theme">
+                            <div class="theme-toggle-slider"></div>
+                        </div>
+                        <i class="fas fa-sun theme-icon" aria-hidden="true"></i>
+                    </div>
+
+                    <div class="language-switcher">
+                        <button class="lang-btn active" type="button" data-lang="en">EN</button>
+                        <button class="lang-btn" type="button" data-lang="am">AM</button>
+                    </div>
+
+                    <nav id="mainNav" aria-label="Primary">
+                        <ul>
+                            <li><a href="#" data-en="Personal" data-am="ግላዊ">Personal</a></li>
+                            <li><a href="#" data-en="Business" data-am="ንግድ">Business</a></li>
+                            <li><a href="#" data-en="Digital ID" data-am="ዲጂታል መለያ">Digital ID</a></li>
+                            <li><a href="#" data-en="Security" data-am="ደህንነት">Security</a></li>
+                            <li><a href="#" data-en="Support" data-am="ድጋፍ">Support</a></li>
+                            <li><a href="/signin.html" data-en="Sign In" data-am="ግባ">Sign In</a></li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </header>
+
+        <!-- Step 1: Welcome -->
+        <div id="step-welcome" class="card">
+            <h2 data-i18n="welcomeTitle">Welcome to Tamange Bank</h2>
+            <div class="info-box">
+                <p><strong data-i18n="digitalIdentityVerification">Digital Identity Verification</strong></p>
+                <p data-i18n="welcomeIntro">Open your bank account in minutes using your mobile driver's license or digital ID. We'll securely verify your identity using the latest digital credentials technology.</p>
+            </div>
+            <h3 style="margin: 20px 0 10px;" data-i18n="whatYouNeed">What you'll need:</h3>
+            <ul style="margin-left: 20px; color: var(--text-secondary, #ccc);">
+                <li data-i18n="needCredential">A mobile driver's license (mDL) or PhotoID digital credential</li>
+                <li data-i18n="needAge">You must be 18 years or older</li>
+                <li data-i18n="needContact">A valid email address and phone number</li>
+            </ul>
+            <button id="startBtn" class="btn-primary" style="margin-top: 30px;" data-i18n="startRegistration">Start Registration</button>
+        </div>
+
+        <!-- Step 2: Identity Verification -->
+        <div id="step-verify" class="card hidden">
+            <div class="step-indicator">
+                <div class="step active" data-i18n="stepVerifyIdentity">1. Verify Identity</div>
+                <div class="step" data-i18n="stepAccountDetails">2. Account Details</div>
+                <div class="step" data-i18n="stepConfirmation">3. Confirmation</div>
+            </div>
+            <h2 data-i18n="verifyYourIdentity">Verify Your Identity</h2>
+            <div class="info-box">
+                <p data-i18n="verifyHelpText">Click the button below to share your digital credentials. We will request your name, date of birth, and document details.</p>
+            </div>
+            <button id="verifyBtn" class="btn-primary" data-i18n="verifyWithDigitalId">Verify with Digital ID</button>
+            <div id="verifyResult" style="margin-top: 20px;"></div>
+        </div>
+
+        <!-- Step 3: Account Selection & Additional Details -->
+        <div id="step-account" class="card hidden">
+            <div class="step-indicator">
+                <div class="step completed" data-i18n="stepVerifyIdentity">1. Verify Identity</div>
+                <div class="step active" data-i18n="stepAccountDetails">2. Account Details</div>
+                <div class="step" data-i18n="stepConfirmation">3. Confirmation</div>
+            </div>
+            <h2 data-i18n="completeRegistration">Complete Your Registration</h2>
+
+            <div id="verifiedDataDisplay" class="verified-data"></div>
+
+            <h3 style="margin: 18px 0 12px;" data-i18n="chooseAccountType">Choose Account Type</h3>
+            <div class="account-types">
+                <div class="account-type" data-type="checking">
+                    <h3 data-i18n="checkingAccount">Checking Account</h3>
+                    <p data-i18n="checkingDesc">For everyday spending and bill payments</p>
+                    <p class="highlight" data-i18n="checkingHighlight">No monthly fees</p>
+                </div>
+                <div class="account-type" data-type="savings">
+                    <h3 data-i18n="savingsAccount">Savings Account</h3>
+                    <p data-i18n="savingsDesc">Earn interest on your balance</p>
+                    <p class="highlight" data-i18n="savingsHighlight">2.5% APY</p>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email"><span data-i18n="emailAddress">Email Address</span> *</label>
+                <input type="email" id="email" required placeholder="you@example.com" data-i18n-placeholder="placeholderEmail">
+            </div>
+
+            <div class="form-group">
+                <label for="phone"><span data-i18n="phoneNumber">Phone Number</span> *</label>
+                <input type="tel" id="phone" required placeholder="+1 (555) 123-4567" data-i18n-placeholder="placeholderPhone">
+            </div>
+
+            <div class="form-group">
+                <label for="address"><span data-i18n="streetAddress">Street Address</span> *</label>
+                <input type="text" id="address" required placeholder="123 Main Street" data-i18n-placeholder="placeholderAddress">
+            </div>
+
+            <div class="form-group">
+                <label for="city"><span data-i18n="city">City</span> *</label>
+                <input type="text" id="city" required placeholder="New York" data-i18n-placeholder="placeholderCity">
+            </div>
+
+            <div class="form-group">
+                <label for="state"><span data-i18n="state">State</span> <small>(<span data-i18n="optional">Optional</span>)</small></label>
+                <input type="text" id="state" placeholder="NY" data-i18n-placeholder="placeholderState">
+            </div>
+
+            <div class="form-group">
+                <label for="zipCode"><span data-i18n="zipCode">ZIP Code</span> <small>(<span data-i18n="optional">Optional</span>)</small></label>
+                <input type="text" id="zipCode" placeholder="10001" data-i18n-placeholder="placeholderZip">
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="terms" required>
+                <label for="terms" data-i18n="termsAgree">I agree to the Terms and Conditions and Privacy Policy</label>
+            </div>
+
+            <button id="submitBtn" class="btn-primary" disabled data-i18n="createAccount">Create Account</button>
+        </div>
+
+        <!-- Step 4: Success -->
+        <div id="step-success" class="card hidden">
+            <div class="step-indicator">
+                <div class="step completed" data-i18n="stepVerifyIdentity">1. Verify Identity</div>
+                <div class="step completed" data-i18n="stepAccountDetails">2. Account Details</div>
+                <div class="step completed" data-i18n="stepConfirmation">3. Confirmation</div>
+            </div>
+            <div class="success-message">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="width: 72px; height: 72px; display:block; margin: 0 auto 12px;">
+                    <circle cx="12" cy="12" r="10" fill="#10b981"/>
+                    <path d="M7 13l3 3 7-7" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <h2 data-i18n="accountCreatedSuccessfully" style="text-align:center;">Account Created Successfully!</h2>
+            </div>
+            <div id="accountDetails" class="verified-data" style="margin-top: 30px;"></div>
+            <div class="info-box" style="margin-top: 20px;">
+                <p><strong data-i18n="nextSteps">Next Steps:</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li data-i18n="nextCheckEmail">Check your email for account confirmation</li>
+                    <li data-i18n="nextDownloadApp">Download the Tamange Bank mobile app</li>
+                    <li data-i18n="nextSetupOnline">Set up your online banking credentials</li>
+                    <li data-i18n="nextFirstDeposit">Make your first deposit</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="module" src="/script.js"></script>
+    <script src="/landing.js"></script>
+</body>
+</html>
