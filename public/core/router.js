@@ -91,6 +91,10 @@ async function applyI18nAndLandingLang() {
     if (typeof header.reapplyLanguage === 'function') {
       await header.reapplyLanguage();
     }
+    // Refresh nav state based on auth
+    if (typeof header.refreshNavState === 'function') {
+      header.refreshNavState();
+    }
   } catch {
     // ignore
   }

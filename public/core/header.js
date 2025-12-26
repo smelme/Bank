@@ -212,6 +212,52 @@ function wireCtas() {
   });
 }
 
+// Check if user is signed in
+function isSignedIn() {
+  return !!sessionStorage.getItem('sessionToken');
+}
+
+// Update navigation based on auth state
+function updateNavForAuthState() {
+  const isAuthenticated = isSignedIn();
+  
+  // Hide/show auth-related menu items
+  const signInLink = document.querySelector('nav a[href="/signin"]');
+  const openAccountLink = document.querySelector('nav a[href="/register"]');
+  
+  if (signInLink) {
+    signInLink.parentElement.style.display = isAuthenticated ? 'none' : '';
+  }
+  if (openAccountLink) {
+    openAccountLink.parentElement.style.display = isAuthenticated ? 'none' : '';
+  }
+}
+
+// Update logo click behavior based on auth state
+function initLogoNavigation() {
+  const logoContainer = document.querySelector('.logo-container');
+  if (!logoContainer) return;
+
+  const clickHandler = (e) => {
+    e.preventDefault();
+    const targetRoute = isSignedIn() ? '/home' : '/';
+    window.history.pushState({}, '', targetRoute);
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  };
+
+  logoContainer.addEventListener('click', clickHandler);
+  logoContainer.style.cursor = 'pointer';
+
+  cleanupFunctions.push(() => {
+    logoContainer.removeEventListener('click', clickHandler);
+  });
+}
+
+// Export function to update nav state (called after sign in/out)
+export function refreshNavState() {
+  updateNavForAuthState();
+}
+
 // Feature card animation
 function initFeatureCardAnimation() {
   const observerOptions = {
@@ -256,6 +302,8 @@ export async function spaMount() {
   initMobileMenu();
   wireCtas();
   initFeatureCardAnimation();
+  initLogoNavigation();
+  updateNavForAuthState();
 
   // Return cleanup function for SPA teardown
   return () => {

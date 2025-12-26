@@ -249,7 +249,18 @@ async function verifyBiometric() {
 
         // Success - redirect to home page with session token
         sessionStorage.setItem('sessionToken', result.sessionToken);
-        window.location.href = 'home.html';
+        
+        // Refresh nav state before redirect
+        try {
+            const header = await import('../core/header.js');
+            if (typeof header.refreshNavState === 'function') {
+                header.refreshNavState();
+            }
+        } catch (e) {
+            console.warn('Could not refresh nav state:', e);
+        }
+        
+        window.location.href = '/home';
 
     } catch (error) {
         console.error('Biometric verification error:', error);

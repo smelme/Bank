@@ -84,7 +84,18 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
     }
 
     sessionStorage.removeItem('sessionToken');
-    window.location.href = 'signin.html';
+    
+    // Refresh nav state and redirect to landing
+    try {
+        const header = await import('../core/header.js');
+        if (typeof header.refreshNavState === 'function') {
+            header.refreshNavState();
+        }
+    } catch (e) {
+        console.warn('Could not refresh nav state:', e);
+    }
+    
+    window.location.href = '/';
 });
 
 // Load account on page load
