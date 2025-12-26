@@ -12,9 +12,9 @@ let currentController = null;
 
 const routes = {
   '/': { view: '/views/landing.partial.html', title: 'Tamange Bank', controller: null },
-  '/signin': { view: '/views/signin.partial.html', title: 'Tamange Bank - Sign In', controller: '/signin.js' },
-  '/register': { view: '/views/register.partial.html', title: 'Tamange Bank - Register', controller: '/script.js' },
-  '/home': { view: '/views/home.partial.html', title: 'Tamange Bank - Home', controller: '/home.js' },
+  '/signin': { view: '/views/signin.partial.html', title: 'Tamange Bank - Sign In', controller: '/pages/signin.js' },
+  '/register': { view: '/views/register.partial.html', title: 'Tamange Bank - Register', controller: '/pages/register.js' },
+  '/home': { view: '/views/home.partial.html', title: 'Tamange Bank - Home', controller: '/pages/home.js' },
 };
 
 function normalizePath(pathname) {
@@ -76,10 +76,10 @@ async function loadController(modulePath) {
 }
 
 async function applyI18nAndLandingLang() {
-  // landing.js listens for DOMContentLoaded only when loaded as script;
+  // header.js listens for DOMContentLoaded only when loaded as script;
   // in SPA we need to re-apply language after swapping content.
   try {
-    const i18n = await import('/i18n.js');
+    const i18n = await import('/core/i18n.js');
     i18n.applyTranslations(i18n.getLanguage());
   } catch {
     // ignore
@@ -87,15 +87,15 @@ async function applyI18nAndLandingLang() {
 
   // Re-apply language to header elements (logo, nav)
   try {
-    const landing = await import('/landing.js');
-    if (typeof landing.reapplyLanguage === 'function') {
-      await landing.reapplyLanguage();
+    const header = await import('/core/header.js');
+    if (typeof header.reapplyLanguage === 'function') {
+      await header.reapplyLanguage();
     }
   } catch {
     // ignore
   }
 
-  // landing.js exposes no API; but it updates language on button click and on DOMContentLoaded.
+  // header.js exposes no API; but it updates language on button click and on DOMContentLoaded.
   // Here we mimic its landing-page behavior for bilingual blocks by toggling based on storage.
   const lang = localStorage.getItem('tamange.lang') || localStorage.getItem('preferredLanguage') || 'en';
   document.querySelectorAll('.language-content').forEach((el) => {

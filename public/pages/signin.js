@@ -1,6 +1,6 @@
 import { requestCredentials } from '/lib/id-verifier.min.js';
 import * as faceapi from '/node_modules/@vladmandic/face-api/dist/face-api.esm.js';
-import { initI18n, t } from './i18n.js';
+import { initI18n, t } from '../core/i18n.js';
 
 let verificationToken = null;
 let videoStream = null;
@@ -25,17 +25,17 @@ async function loadModels() {
 // Initialize models on page load
 loadModels();
 
-// Initialize i18n when DOM is ready (landing.js will handle the toggle UI)
+// Initialize i18n when DOM is ready (header.js will handle the toggle UI)
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         const lang = localStorage.getItem('tamange.lang') || 'en';
-        import('./i18n.js').then(i18n => {
+        import('../core/i18n.js').then(i18n => {
             i18n.setLanguage(lang);
         });
     });
 } else {
     const lang = localStorage.getItem('tamange.lang') || 'en';
-    import('./i18n.js').then(i18n => {
+    import('../core/i18n.js').then(i18n => {
         i18n.setLanguage(lang);
     });
 }

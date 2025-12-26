@@ -1,4 +1,4 @@
-import { initI18n, t } from './i18n.js';
+import { initI18n, t } from '../core/i18n.js';
 
 // Initialize i18n (language selector + initial translations)
 initI18n();

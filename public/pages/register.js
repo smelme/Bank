@@ -1,20 +1,20 @@
 import { requestCredentials } from '/lib/id-verifier.min.js';
-import { t } from './i18n.js';
+import { t } from '../core/i18n.js';
 
 let verifiedData = null;
 let selectedAccountType = null;
 
-// Initialize i18n when DOM is ready (landing.js will handle the toggle UI)
+// Initialize i18n when DOM is ready (header.js will handle the toggle UI)
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         const lang = localStorage.getItem('tamange.lang') || 'en';
-        import('./i18n.js').then(i18n => {
+        import('../core/i18n.js').then(i18n => {
             i18n.setLanguage(lang);
         });
     });
 } else {
     const lang = localStorage.getItem('tamange.lang') || 'en';
-    import('./i18n.js').then(i18n => {
+    import('../core/i18n.js').then(i18n => {
         i18n.setLanguage(lang);
     });
 }
