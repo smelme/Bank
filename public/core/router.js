@@ -130,6 +130,11 @@ async function render(pathname = window.location.pathname) {
   const route = matchRoute(pathname);
   if (!route) return;
 
+  // Redirect signed-in users from landing page to home
+  if (route.path === '/' && sessionStorage.getItem('sessionToken')) {
+    return navigate('/home', { replace: true });
+  }
+
   await teardownCurrent();
 
   document.title = route.title;
