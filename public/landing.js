@@ -24,7 +24,7 @@ function applyLandingLang(lang) {
   // Update navigation and button text with data attributes
   document.querySelectorAll('[data-en]').forEach((element) => {
     const text = lang === 'en' ? element.getAttribute('data-en') : element.getAttribute('data-am');
-    if (text && (element.tagName === 'BUTTON' || element.tagName === 'SPAN' || element.tagName === 'A')) {
+    if (text && (element.tagName === 'BUTTON' || element.tagName === 'SPAN' || element.tagName === 'A' || element.tagName === 'DIV')) {
       element.textContent = text;
     }
   });
