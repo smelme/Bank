@@ -65,8 +65,11 @@ function initLanguageToggle() {
   const languageToggle = document.getElementById('languageToggle');
   const langLabels = document.querySelectorAll('.lang-label');
 
+  console.log('[DEBUG] initLanguageToggle called, toggle:', languageToggle, 'labels:', langLabels.length);
+
   if (languageToggle) {
     const clickHandler = async () => {
+      console.log('[DEBUG] Language toggle clicked!');
       await toggleLanguage();
     };
     const keydownHandler = async (e) => {
