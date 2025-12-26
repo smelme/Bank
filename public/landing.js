@@ -259,12 +259,10 @@ export function spaMount() {
   };
 }
 
-// For standalone page loads (non-SPA), initialize on DOMContentLoaded
-// This only runs when loaded as a regular script (not as module)
-if (typeof document !== 'undefined' && !import.meta.url) {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', spaMount);
-  } else {
-    spaMount();
-  }
+// For standalone page loads (non-SPA), always initialize
+// When loaded via SPA router, spaMount() will be called explicitly by spa.js
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', spaMount);
+} else {
+  spaMount();
 }
