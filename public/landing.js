@@ -45,10 +45,10 @@ async function applyLang(lang) {
   await i18nSetLanguage(lang);
 }
 
-function toggleLanguage() {
+async function toggleLanguage() {
   const currentLang = getLanguage();
   const newLang = currentLang === 'en' ? 'am' : 'en';
-  applyLang(newLang);
+  await applyLang(newLang);
 }
 
 function initLanguageToggle() {
@@ -56,11 +56,13 @@ function initLanguageToggle() {
   const langLabels = document.querySelectorAll('.lang-label');
 
   if (languageToggle) {
-    const clickHandler = () => toggleLanguage();
-    const keydownHandler = (e) => {
+    const clickHandler = async () => {
+      await toggleLanguage();
+    };
+    const keydownHandler = async (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        toggleLanguage();
+        await toggleLanguage();
       }
     };
 
@@ -75,7 +77,9 @@ function initLanguageToggle() {
 
   // Allow clicking on labels to toggle
   langLabels.forEach((label) => {
-    const clickHandler = () => toggleLanguage();
+    const clickHandler = async () => {
+      await toggleLanguage();
+    };
     label.addEventListener('click', clickHandler);
     cleanupFunctions.push(() => {
       label.removeEventListener('click', clickHandler);
@@ -232,14 +236,14 @@ function initFeatureCardAnimation() {
 }
 
 // SPA mount function - called when landing page loads in SPA
-export function spaMount() {
+export async function spaMount() {
   // Clear any previous cleanup functions
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
 
   // Initialize language with saved preference
   const savedLang = localStorage.getItem('tamange.lang') || getLanguage() || 'en';
-  applyLang(savedLang);
+  await applyLang(savedLang);
 
   // Initialize all interactive features
   initLanguageToggle();
