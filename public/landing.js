@@ -1,12 +1,8 @@
 // Shared header interactions (theme, language, mobile menu, plus landing-only niceties)
 // Safe to include on any public page; it no-ops when elements aren't present.
 
-console.log('[landing.js] Module loading...');
-
 // Import i18n for proper language switching coordination
 import { setLanguage as i18nSetLanguage, getLanguage, applyTranslations } from './i18n.js';
-
-console.log('[landing.js] i18n imported successfully');
 
 // Cleanup functions array for SPA lifecycle
 let cleanupFunctions = [];
@@ -50,32 +46,22 @@ async function applyLang(lang) {
 }
 
 async function toggleLanguage() {
-  console.log('[landing.js] toggleLanguage() called');
   const currentLang = getLanguage();
-  console.log('[landing.js] Current language:', currentLang);
   const newLang = currentLang === 'en' ? 'am' : 'en';
-  console.log('[landing.js] Switching to:', newLang);
   await applyLang(newLang);
-  console.log('[landing.js] Language switched successfully');
 }
 
 function initLanguageToggle() {
   const languageToggle = document.getElementById('languageToggle');
   const langLabels = document.querySelectorAll('.lang-label');
 
-  console.log('[landing.js] initLanguageToggle called');
-  console.log('[landing.js] languageToggle element:', languageToggle);
-  console.log('[landing.js] langLabels count:', langLabels.length);
-
   if (languageToggle) {
     const clickHandler = async () => {
-      console.log('[landing.js] Language toggle clicked!');
       await toggleLanguage();
     };
     const keydownHandler = async (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        console.log('[landing.js] Language toggle key pressed');
         await toggleLanguage();
       }
     };
@@ -87,14 +73,11 @@ function initLanguageToggle() {
       languageToggle.removeEventListener('click', clickHandler);
       languageToggle.removeEventListener('keydown', keydownHandler);
     });
-  } else {
-    console.warn('[landing.js] languageToggle element not found!');
   }
 
   // Allow clicking on labels to toggle
   langLabels.forEach((label) => {
     const clickHandler = async () => {
-      console.log('[landing.js] Language label clicked:', label.textContent);
       await toggleLanguage();
     };
     label.addEventListener('click', clickHandler);
@@ -254,14 +237,12 @@ function initFeatureCardAnimation() {
 
 // SPA mount function - called when landing page loads in SPA
 export async function spaMount() {
-  console.log('[landing.js] spaMount() called');
   // Clear any previous cleanup functions
   cleanupFunctions.forEach(fn => fn());
   cleanupFunctions = [];
 
   // Initialize language with saved preference
   const savedLang = localStorage.getItem('tamange.lang') || getLanguage() || 'en';
-  console.log('[landing.js] Initializing with language:', savedLang);
   await applyLang(savedLang);
 
   // Initialize all interactive features
