@@ -34,7 +34,7 @@
   </script>
 </head>
 <body>
-  <!-- Shared header (matches public/index.html) -->
+  <!-- Shared header -->
   <header>
     <div class="container">
       <div class="header-content">
@@ -45,40 +45,87 @@
           </div>
         </div>
 
+        <!-- Desktop controls -->
+        <div class="desktop-controls">
+          <div class="language-toggle-container">
+            <span class="lang-label" data-lang="en">English</span>
+            <div class="language-toggle" id="languageToggle" role="button" tabindex="0" aria-label="Toggle language">
+              <div class="language-toggle-slider"></div>
+            </div>
+            <span class="lang-label" data-lang="am">አማርኛ</span>
+          </div>
+
+          <div class="theme-toggle-container">
+            <i class="fas fa-moon theme-icon" aria-hidden="true"></i>
+            <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle theme">
+              <div class="theme-toggle-slider"></div>
+            </div>
+            <i class="fas fa-sun theme-icon" aria-hidden="true"></i>
+          </div>
+
+          <nav id="mainNav" aria-label="Primary">
+            <ul>
+              <li><a href="#" data-en="Personal" data-am="ግላዊ">Personal</a></li>
+              <li><a href="#" data-en="Business" data-am="ንግድ">Business</a></li>
+              <li><a href="#" data-en="Support" data-am="ድጋፍ">Support</a></li>
+              <li><a href="/register" data-en="Open Account" data-am="አካውንት ይክፈቱ">Open Account</a></li>
+              <li><a href="/signin" data-en="Sign In" data-am="ይግቡ">Sign In</a></li>
+            </ul>
+          </nav>
+        </div>
+
+        <!-- Mobile menu button -->
         <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Menu">
           <i class="fas fa-bars" aria-hidden="true"></i>
         </button>
-
-        <div class="theme-toggle-container">
-          <i class="fas fa-moon theme-icon" aria-hidden="true"></i>
-          <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle theme">
-            <div class="theme-toggle-slider"></div>
-          </div>
-          <i class="fas fa-sun theme-icon" aria-hidden="true"></i>
-        </div>
-
-        <div class="language-toggle-container">
-          <span class="lang-label" data-lang="en">English</span>
-          <div class="language-toggle" id="languageToggle" role="button" tabindex="0" aria-label="Toggle language">
-            <div class="language-toggle-slider"></div>
-          </div>
-          <span class="lang-label" data-lang="am">አማርኛ</span>
-        </div>
-
-        <nav id="mainNav" aria-label="Primary">
-          <ul>
-            <li><a href="#" data-en="Personal" data-am="ግላዊ">Personal</a></li>
-            <li><a href="#" data-en="Business" data-am="ንግድ">Business</a></li>
-            <li><a href="#" data-en="Digital ID" data-am="ዲጂታል መለያ">Digital ID</a></li>
-            <li><a href="#" data-en="Security" data-am="ደህንነት">Security</a></li>
-            <li><a href="#" data-en="Support" data-am="ድጋፍ">Support</a></li>
-            <li><a href="/register" data-en="Open Account" data-am="አካውንት ይክፈቱ">Open Account</a></li>
-            <li><a href="/signin" data-en="Sign In" data-am="ይግቡ">Sign In</a></li>
-          </ul>
-        </nav>
       </div>
     </div>
   </header>
+
+  <!-- Mobile drawer overlay -->
+  <div class="mobile-drawer-overlay" id="mobileDrawerOverlay">
+    <div class="mobile-drawer" id="mobileDrawer">
+      <div class="mobile-drawer-header">
+        <button class="mobile-drawer-close" id="mobileDrawerClose" aria-label="Close menu">
+          <i class="fas fa-times" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <nav class="mobile-drawer-nav" aria-label="Mobile navigation">
+        <ul>
+          <li><a href="#" data-en="Personal" data-am="ግላዊ">Personal</a></li>
+          <li><a href="#" data-en="Business" data-am="ንግድ">Business</a></li>
+          <li><a href="#" data-en="Support" data-am="ድጋፍ">Support</a></li>
+          <li><a href="/register" data-en="Open Account" data-am="አካውንት ይክፈቱ">Open Account</a></li>
+          <li><a href="/signin" data-en="Sign In" data-am="ይግቡ">Sign In</a></li>
+        </ul>
+      </nav>
+
+      <div class="mobile-drawer-controls">
+        <div class="drawer-control-group">
+          <span class="control-label" data-en="Language" data-am="ቋንቋ">Language</span>
+          <div class="language-toggle-container-drawer">
+            <span class="lang-label" data-lang="en">English</span>
+            <div class="language-toggle-drawer" id="languageToggleDrawer" role="button" tabindex="0" aria-label="Toggle language">
+              <div class="language-toggle-slider"></div>
+            </div>
+            <span class="lang-label" data-lang="am">አማርኛ</span>
+          </div>
+        </div>
+
+        <div class="drawer-control-group">
+          <span class="control-label" data-en="Theme" data-am="ገፅታ">Theme</span>
+          <div class="theme-toggle-container-drawer">
+            <i class="fas fa-moon theme-icon" aria-hidden="true"></i>
+            <div class="theme-toggle-drawer" id="themeToggleDrawer" role="button" tabindex="0" aria-label="Toggle theme">
+              <div class="theme-toggle-slider"></div>
+            </div>
+            <i class="fas fa-sun theme-icon" aria-hidden="true"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <main id="app" class="spa-outlet">
     <div class="container" style="padding: 24px 0;">

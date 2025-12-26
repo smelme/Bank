@@ -58,9 +58,11 @@ async function toggleLanguage() {
 
 function initLanguageToggle() {
   const languageToggle = document.getElementById('languageToggle');
+  const languageToggleDrawer = document.getElementById('languageToggleDrawer');
   const langLabels = document.querySelectorAll('.lang-label');
+  const toggles = [languageToggle, languageToggleDrawer].filter(Boolean);
 
-  if (languageToggle) {
+  toggles.forEach((toggleEl) => {
     const clickHandler = async () => {
       await toggleLanguage();
     };
@@ -71,14 +73,14 @@ function initLanguageToggle() {
       }
     };
 
-    languageToggle.addEventListener('click', clickHandler);
-    languageToggle.addEventListener('keydown', keydownHandler);
+    toggleEl.addEventListener('click', clickHandler);
+    toggleEl.addEventListener('keydown', keydownHandler);
 
     cleanupFunctions.push(() => {
-      languageToggle.removeEventListener('click', clickHandler);
-      languageToggle.removeEventListener('keydown', keydownHandler);
+      toggleEl.removeEventListener('click', clickHandler);
+      toggleEl.removeEventListener('keydown', keydownHandler);
     });
-  }
+  });
 
   // Allow clicking on labels to toggle
   langLabels.forEach((label) => {
@@ -95,9 +97,9 @@ function initLanguageToggle() {
 // Theme Toggle Functionality
 function initThemeToggle() {
   const themeToggle = document.getElementById('themeToggle');
+  const themeToggleDrawer = document.getElementById('themeToggleDrawer');
   const body = document.body;
 
-  // Check for saved theme or prefer-color-scheme
   const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
   const savedTheme = localStorage.getItem('theme');
 
@@ -105,88 +107,114 @@ function initThemeToggle() {
     body.classList.add('light-theme');
   }
 
-  function toggleTheme() {
-    body.classList.toggle('light-theme');
-    const isLightTheme = body.classList.contains('light-theme');
-    localStorage.setItem('theme', isLightTheme ? 'light' : 'dark');
-  }
+  const setTheme = (isLight) => {
+    body.classList.toggle('light-theme', isLight);
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+  };
 
-  if (themeToggle) {
-    const clickHandler = () => toggleTheme();
+  const handleToggle = () => {
+    const nextIsLight = !body.classList.contains('light-theme');
+    setTheme(nextIsLight);
+  };
+
+  [themeToggle, themeToggleDrawer].filter(Boolean).forEach((toggleEl) => {
+    const clickHandler = () => handleToggle();
     const keydownHandler = (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        toggleTheme();
+        handleToggle();
       }
     };
 
-    themeToggle.addEventListener('click', clickHandler);
-    themeToggle.addEventListener('keydown', keydownHandler);
+    toggleEl.addEventListener('click', clickHandler);
+    toggleEl.addEventListener('keydown', keydownHandler);
 
     cleanupFunctions.push(() => {
-      themeToggle.removeEventListener('click', clickHandler);
-      themeToggle.removeEventListener('keydown', keydownHandler);
+      toggleEl.removeEventListener('click', clickHandler);
+      toggleEl.removeEventListener('keydown', keydownHandler);
     });
-  }
+  });
 }
 
-// Mobile Menu Toggle
+// Mobile Menu Toggle -> Drawer
 function initMobileMenu() {
   const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-  const mainNav = document.getElementById('mainNav');
+  const mobileDrawerOverlay = document.getElementById('mobileDrawerOverlay');
+  const mobileDrawerClose = document.getElementById('mobileDrawerClose');
+  const drawer = document.getElementById('mobileDrawer');
+  const drawerLinks = drawer ? drawer.querySelectorAll('a') : [];
 
-  if (!mobileMenuToggle || !mainNav) return;
+  if (!mobileMenuToggle || !mobileDrawerOverlay || !drawer) return;
 
-  const toggleHandler = function () {
-    mainNav.classList.toggle('active');
+  const icon = mobileMenuToggle.querySelector('i');
 
-    // Change icon
-    const icon = mobileMenuToggle.querySelector('i');
+  const setIcon = (isOpen) => {
     if (!icon) return;
+    icon.classList.toggle('fa-bars', !isOpen);
+    icon.classList.toggle('fa-times', isOpen);
+  };
 
-    if (mainNav.classList.contains('active')) {
-      icon.classList.remove('fa-bars');
-      icon.classList.add('fa-times');
+  const openDrawer = () => {
+    mobileDrawerOverlay.classList.add('open');
+    document.body.classList.add('drawer-open');
+    setIcon(true);
+  };
+
+  const closeDrawer = () => {
+    mobileDrawerOverlay.classList.remove('open');
+    document.body.classList.remove('drawer-open');
+    setIcon(false);
+  };
+
+  const toggleHandler = () => {
+    const isOpen = mobileDrawerOverlay.classList.contains('open');
+    if (isOpen) {
+      closeDrawer();
     } else {
-      icon.classList.remove('fa-times');
-      icon.classList.add('fa-bars');
+      openDrawer();
     }
   };
+
+  const overlayClickHandler = (event) => {
+    if (event.target === mobileDrawerOverlay) {
+      closeDrawer();
+    }
+  };
+
+  const escHandler = (event) => {
+    if (event.key === 'Escape') {
+      closeDrawer();
+    }
+  };
+
+  const resizeHandler = () => {
+    if (window.innerWidth > 992) {
+      closeDrawer();
+    }
+  };
+
+  const popstateHandler = () => closeDrawer();
+
+  const closeDrawerLinksHandler = () => closeDrawer();
 
   mobileMenuToggle.addEventListener('click', toggleHandler);
-
-  // Close mobile menu when clicking outside
-  const outsideClickHandler = function (event) {
-    if (!mainNav.contains(event.target) && !mobileMenuToggle.contains(event.target) && window.innerWidth <= 992) {
-      mainNav.classList.remove('active');
-      const icon = mobileMenuToggle.querySelector('i');
-      if (icon) {
-        icon.classList.remove('fa-times');
-        icon.classList.add('fa-bars');
-      }
-    }
-  };
-
-  document.addEventListener('click', outsideClickHandler);
-
-  // Window resize handler
-  const resizeHandler = function () {
-    if (window.innerWidth > 992) {
-      mainNav.classList.remove('active');
-      const icon = mobileMenuToggle.querySelector('i');
-      if (icon) {
-        icon.classList.remove('fa-times');
-        icon.classList.add('fa-bars');
-      }
-    }
-  };
-
+  mobileDrawerOverlay.addEventListener('click', overlayClickHandler);
+  if (mobileDrawerClose) {
+    mobileDrawerClose.addEventListener('click', closeDrawer);
+    cleanupFunctions.push(() => mobileDrawerClose.removeEventListener('click', closeDrawer));
+  }
+  window.addEventListener('keydown', escHandler);
   window.addEventListener('resize', resizeHandler);
+  window.addEventListener('popstate', popstateHandler);
+  drawerLinks.forEach((link) => link.addEventListener('click', closeDrawerLinksHandler));
 
   cleanupFunctions.push(() => {
     mobileMenuToggle.removeEventListener('click', toggleHandler);
-    document.removeEventListener('click', outsideClickHandler);
+    mobileDrawerOverlay.removeEventListener('click', overlayClickHandler);
+    window.removeEventListener('keydown', escHandler);
     window.removeEventListener('resize', resizeHandler);
+    window.removeEventListener('popstate', popstateHandler);
+    drawerLinks.forEach((link) => link.removeEventListener('click', closeDrawerLinksHandler));
   });
 }
 
