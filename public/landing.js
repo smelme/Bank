@@ -11,17 +11,12 @@ let cleanupFunctions = [];
 function applyLandingLang(lang) {
   const languageContents = document.querySelectorAll('.language-content');
   
-  if (!languageContents.length) {
-    // Page doesn't use the landing bilingual blocks
-    return;
-  }
-
-  // Show/hide language content
+  // Show/hide language content blocks (only on landing page)
   languageContents.forEach((content) => {
     content.classList.toggle('active', content.classList.contains(lang));
   });
 
-  // Update navigation and button text with data attributes
+  // Update navigation and button text with data attributes (works on all pages)
   document.querySelectorAll('[data-en]').forEach((element) => {
     const text = lang === 'en' ? element.getAttribute('data-en') : element.getAttribute('data-am');
     if (text && (element.tagName === 'BUTTON' || element.tagName === 'SPAN' || element.tagName === 'A' || element.tagName === 'DIV')) {
