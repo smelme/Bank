@@ -11,7 +11,7 @@ let currentTeardown = null;
 let currentController = null;
 
 const routes = {
-  '/': { view: '/views/landing.partial.html', title: 'Tamange Bank', controller: '/landing.js' },
+  '/': { view: '/views/landing.partial.html', title: 'Tamange Bank', controller: null },
   '/signin': { view: '/views/signin.partial.html', title: 'Tamange Bank - Sign In', controller: '/signin.js' },
   '/register': { view: '/views/register.partial.html', title: 'Tamange Bank - Register', controller: '/script.js' },
   '/home': { view: '/views/home.partial.html', title: 'Tamange Bank - Home', controller: '/home.js' },
