@@ -1,6 +1,9 @@
 // Shared header interactions (theme, language, mobile menu, plus landing-only niceties)
 // Safe to include on any public page; it no-ops when elements aren't present.
 
+// Import i18n for proper language switching coordination
+import { setLanguage as i18nSetLanguage, getLanguage, applyTranslations } from './i18n.js';
+
 // Cleanup functions array for SPA lifecycle
 let cleanupFunctions = [];
 
@@ -27,30 +30,23 @@ function applyLandingLang(lang) {
   });
 }
 
-async function tryApplyI18nLang(lang) {
-  // If the main i18n system is available, use it.
-  if (window.i18n && typeof window.i18n.setLanguage === 'function') {
-    await window.i18n.setLanguage(lang);
-  }
-}
-
 async function applyLang(lang) {
   // Update body lang attribute for CSS
   document.body.setAttribute('lang', lang);
   // Update document language attribute
   document.documentElement.lang = lang;
-  // Save preference
+  // Save preference to localStorage
   localStorage.setItem('tamange.lang', lang);
   
-  // Apply landing page specific language
+  // Apply landing page specific language (bilingual blocks)
   applyLandingLang(lang);
   
-  // Apply i18n system if available
-  await tryApplyI18nLang(lang);
+  // Apply i18n system translations (data-i18n attributes)
+  await i18nSetLanguage(lang);
 }
 
 function toggleLanguage() {
-  const currentLang = document.body.getAttribute('lang') || 'en';
+  const currentLang = getLanguage();
   const newLang = currentLang === 'en' ? 'am' : 'en';
   applyLang(newLang);
 }
@@ -242,7 +238,7 @@ export function spaMount() {
   cleanupFunctions = [];
 
   // Initialize language with saved preference
-  const savedLang = localStorage.getItem('tamange.lang') || 'en';
+  const savedLang = localStorage.getItem('tamange.lang') || getLanguage() || 'en';
   applyLang(savedLang);
 
   // Initialize all interactive features
