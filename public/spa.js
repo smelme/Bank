@@ -85,6 +85,16 @@ async function applyI18nAndLandingLang() {
     // ignore
   }
 
+  // Re-apply language to header elements (logo, nav)
+  try {
+    const landing = await import('/landing.js');
+    if (typeof landing.reapplyLanguage === 'function') {
+      await landing.reapplyLanguage();
+    }
+  } catch {
+    // ignore
+  }
+
   // landing.js exposes no API; but it updates language on button click and on DOMContentLoaded.
   // Here we mimic its landing-page behavior for bilingual blocks by toggling based on storage.
   const lang = localStorage.getItem('tamange.lang') || localStorage.getItem('preferredLanguage') || 'en';
@@ -93,7 +103,7 @@ async function applyI18nAndLandingLang() {
   });
   document.querySelectorAll('[data-en]').forEach((el) => {
     const text = lang === 'en' ? el.getAttribute('data-en') : el.getAttribute('data-am');
-    if (text && (el.tagName === 'BUTTON' || el.tagName === 'SPAN' || el.tagName === 'A')) el.textContent = text;
+    if (text && (el.tagName === 'BUTTON' || el.tagName === 'SPAN' || el.tagName === 'A' || el.tagName === 'DIV')) el.textContent = text;
   });
 }
 

@@ -45,6 +45,16 @@ async function applyLang(lang) {
   await i18nSetLanguage(lang);
 }
 
+// Export function for SPA to call when navigating between routes
+export async function reapplyLanguage() {
+  const lang = getLanguage();
+  // Update body and document lang attributes
+  document.body.setAttribute('lang', lang);
+  document.documentElement.lang = lang;
+  // Re-apply to all elements with data-en/data-am in header
+  applyLandingLang(lang);
+}
+
 async function toggleLanguage() {
   const currentLang = getLanguage();
   const newLang = currentLang === 'en' ? 'am' : 'en';
