@@ -133,7 +133,9 @@ const dict = {
 
     // Home (dashboard)
     homeTitle: 'Tamange Bank - Home',
+    welcomeBack: 'Welcome back',
     availableBalance: 'Available Balance',
+    accountLabel: 'Account',
     transferMoney: 'Transfer Money',
     payBills: 'Pay Bills',
     depositCheck: 'Deposit Check',
@@ -273,7 +275,9 @@ const dict = {
 
     // Home (dashboard)
     homeTitle: 'ታማኝ ባንክ - መነሻ',
+    welcomeBack: 'እንኳን ደህና መጡ',
     availableBalance: 'ሊጠቀሙ የሚችሉት ብዛት',
+    accountLabel: 'መለያ',
     transferMoney: 'ገንዘብ አስተላልፍ',
     payBills: 'ቢሎችን ክፈል',
     depositCheck: 'ቼክ አስገባ',

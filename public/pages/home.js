@@ -1,7 +1,4 @@
-import { initI18n, t } from '../core/i18n.js';
-
-// Initialize i18n (language selector + initial translations)
-initI18n();
+import { t } from '../core/i18n.js';
 
 // Check session and load account data
 async function loadAccount() {

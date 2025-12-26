@@ -1,35 +1,36 @@
-<div class="container">
-  <div class="bank-header">
-    <div class="bank-logo" data-i18n="bankName">TAMANGE BANK</div>
-    <div class="user-section">
-      <div class="user-name" id="userName">Loading...</div>
-      <div>
-        <select class="lang-select" data-lang-selector aria-label="Language">
-          <option value="en">EN</option>
-          <option value="am">አማ</option>
-        </select>
-        <button class="logout-btn" id="logoutBtn" data-i18n="signOut">Sign Out</button>
-      </div>
+<div class="container" style="max-width: 1200px; margin: 0 auto; padding: 40px 24px;">
+  <!-- Welcome Section -->
+  <div class="welcome-bar">
+    <div>
+      <h1 class="page-title" data-i18n="welcomeBack">Welcome back</h1>
+      <p class="user-name" id="userName">Loading...</p>
+    </div>
+    <button class="btn-secondary" id="logoutBtn" data-i18n="signOut">Sign Out</button>
+  </div>
+
+  <div id="loadingSection" class="loading-state" data-i18n="loadingAccount">Loading your account information...</div>
+
+  <div id="errorSection" class="card" style="display: none;">
+    <div style="text-align: center; padding: 40px 20px;">
+      <h2 data-i18n="accessDenied">Access Denied</h2>
+      <p id="errorMessage" data-i18n="pleaseSignIn">Please sign in to access your account.</p>
+      <button id="goSignInBtn" class="btn-primary" style="margin-top: 24px;" data-i18n="navSignIn">Sign In</button>
     </div>
   </div>
 
-  <div id="loadingSection" class="card loading" data-i18n="loadingAccount">Loading your account information...</div>
-
-  <div id="errorSection" class="card error" style="display: none;">
-    <h3 data-i18n="accessDenied">Access Denied</h3>
-    <p id="errorMessage" data-i18n="pleaseSignIn">Please sign in to access your account.</p>
-    <button id="goSignInBtn" class="action-btn" style="margin-top: 20px; width: 100%;" data-i18n="navSignIn">Sign In</button>
-  </div>
-
-  <div id="dashboardSection" class="dashboard" style="display: none;">
-    <div>
+  <div id="dashboardSection" class="dashboard-grid" style="display: none;">
+    <!-- Main Content Area -->
+    <div class="dashboard-main">
+      <!-- Account Overview Card -->
       <div class="card">
         <div class="account-header">
           <div>
-            <h2 id="accountHolderName">Account Holder</h2>
-            <div class="account-number">Account: <span id="accountNumber">-</span></div>
+            <h2 id="accountHolderName" style="margin: 0 0 8px 0; font-size: 24px; font-weight: 600;">Account Holder</h2>
+            <p class="account-number" style="margin: 0; color: var(--text-secondary); font-size: 14px;">
+              <span data-i18n="accountLabel">Account:</span> <span id="accountNumber">-</span>
+            </p>
           </div>
-          <div class="account-type" id="accountType">-</div>
+          <div class="account-badge" id="accountType">-</div>
         </div>
 
         <div class="balance-section">
@@ -37,52 +38,85 @@
           <div class="balance-amount" id="accountBalance">$0.00</div>
         </div>
 
-        <h3 data-i18n="dashboardQuickActions">Quick Actions</h3>
+        <div class="section-divider"></div>
+
+        <h3 style="margin: 0 0 16px 0; font-size: 16px; font-weight: 600;" data-i18n="dashboardQuickActions">Quick Actions</h3>
         <div class="quick-actions">
-          <button class="action-btn" data-i18n="transferMoney">Transfer Money</button>
-          <button class="action-btn" data-i18n="payBills">Pay Bills</button>
-          <button class="action-btn" data-i18n="depositCheck">Deposit Check</button>
-          <button class="action-btn" data-i18n="viewStatements">View Statements</button>
+          <button class="btn-action" data-i18n="transferMoney">
+            <i class="fas fa-exchange-alt"></i>
+            <span>Transfer Money</span>
+          </button>
+          <button class="btn-action" data-i18n="payBills">
+            <i class="fas fa-file-invoice-dollar"></i>
+            <span>Pay Bills</span>
+          </button>
+          <button class="btn-action" data-i18n="depositCheck">
+            <i class="fas fa-money-check-alt"></i>
+            <span>Deposit Check</span>
+          </button>
+          <button class="btn-action" data-i18n="viewStatements">
+            <i class="fas fa-file-alt"></i>
+            <span>View Statements</span>
+          </button>
         </div>
       </div>
 
-      <div class="card recent-activity">
-        <h3 data-i18n="dashboardRecentActivity">Recent Activity</h3>
+      <!-- Recent Activity Card -->
+      <div class="card">
+        <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600;" data-i18n="dashboardRecentActivity">Recent Activity</h3>
         <div id="activityList">
           <div class="activity-item">
-            <span class="activity-desc" data-i18n="accountOpened">Account Opened</span>
-            <span class="activity-date" id="accountCreatedDate">-</span>
+            <div class="activity-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="activity-content">
+              <span class="activity-desc" data-i18n="accountOpened">Account Opened</span>
+              <span class="activity-date" id="accountCreatedDate">-</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
-    <div>
-      <div class="card sidebar-card">
-        <h3 data-i18n="dashboardAccountDetails">Account Details</h3>
-        <div class="info-item">
-          <span class="info-label">Email</span>
-          <span class="info-value" id="accountEmail">-</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label">Phone</span>
-          <span class="info-value" id="accountPhone">-</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label" data-i18n="memberSince">Member Since</span>
-          <span class="info-value" id="memberSince">-</span>
+    <!-- Sidebar Area -->
+    <div class="dashboard-sidebar">
+      <!-- Account Details Card -->
+      <div class="card">
+        <h3 style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;" data-i18n="dashboardAccountDetails">Account Details</h3>
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label">Email</span>
+            <span class="info-value" id="accountEmail">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label">Phone</span>
+            <span class="info-value" id="accountPhone">-</span>
+          </div>
+          <div class="info-item">
+            <span class="info-label" data-i18n="memberSince">Member Since</span>
+            <span class="info-value" id="memberSince">-</span>
+          </div>
         </div>
       </div>
 
-      <div class="card sidebar-card">
-        <h3 data-i18n="dashboardSecurity">Security</h3>
-        <div class="info-item">
-          <span class="info-label" data-i18n="authentication">Authentication</span>
-          <span class="info-value" style="color: #10b981;" data-i18n="authDigitalId">Digital ID</span>
-        </div>
-        <div class="info-item">
-          <span class="info-label" data-i18n="biometric">Biometric</span>
-          <span class="info-value" style="color: #10b981;" data-i18n="biometricEnabled">Enabled</span>
+      <!-- Security Card -->
+      <div class="card">
+        <h3 style="margin: 0 0 20px 0; font-size: 16px; font-weight: 600;" data-i18n="dashboardSecurity">Security</h3>
+        <div class="info-list">
+          <div class="info-item">
+            <span class="info-label" data-i18n="authentication">Authentication</span>
+            <span class="info-value security-badge success">
+              <i class="fas fa-shield-alt"></i>
+              <span data-i18n="authDigitalId">Digital ID</span>
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="info-label" data-i18n="biometric">Biometric</span>
+            <span class="info-value security-badge success">
+              <i class="fas fa-fingerprint"></i>
+              <span data-i18n="biometricEnabled">Enabled</span>
+            </span>
+          </div>
         </div>
       </div>
     </div>
