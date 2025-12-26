@@ -45,6 +45,12 @@
         .verified-data { border: 1px solid rgba(52,211,153,0.30); background: rgba(52,211,153,0.08); border-radius: 16px; padding: 14px; }
         .error-box { border: 1px solid rgba(251,113,133,0.30); background: rgba(251,113,133,0.10); border-radius: 16px; padding: 14px; }
 
+    /* Light theme overrides (inline helpers above are tuned for dark theme) */
+    body.light-theme .info-box { border-color: rgba(0,0,0,0.10); background: rgba(0,0,0,0.03); color: rgba(10,10,10,0.72); }
+    body.light-theme .info-box strong { color: rgba(10,10,10,0.90); }
+    body.light-theme .verified-data { border-color: rgba(16,185,129,0.40); background: rgba(16,185,129,0.10); color: rgba(10,10,10,0.80); }
+    body.light-theme .error-box { border-color: rgba(225,29,72,0.35); background: rgba(225,29,72,0.08); color: rgba(10,10,10,0.82); }
+
         /* Registration page layout wrapper */
         .registration-wrap { max-width: 980px; margin: 0 auto; padding: 18px 18px 40px; }
 
@@ -89,8 +95,6 @@
                         <i class="fas fa-bars" aria-hidden="true"></i>
                     </button>
 
-                    <a class="cta-button" href="/register.html" data-en="Open Account" data-am="አካውንት ይክፈቱ">Open Account</a>
-
                     <div class="theme-toggle-container">
                         <i class="fas fa-moon theme-icon" aria-hidden="true"></i>
                         <div class="theme-toggle" id="themeToggle" role="button" tabindex="0" aria-label="Toggle theme">
@@ -99,9 +103,12 @@
                         <i class="fas fa-sun theme-icon" aria-hidden="true"></i>
                     </div>
 
-                    <div class="language-switcher">
-                        <button class="lang-btn active" type="button" data-lang="en">EN</button>
-                        <button class="lang-btn" type="button" data-lang="am">AM</button>
+                    <div class="language-toggle-container">
+                        <span class="lang-label" data-lang="en">English</span>
+                        <div class="language-toggle" id="languageToggle" role="button" tabindex="0" aria-label="Toggle language">
+                            <div class="language-toggle-slider"></div>
+                        </div>
+                        <span class="lang-label" data-lang="am">አማርኛ</span>
                     </div>
 
                     <nav id="mainNav" aria-label="Primary">
@@ -111,7 +118,8 @@
                             <li><a href="#" data-en="Digital ID" data-am="ዲጂታል መለያ">Digital ID</a></li>
                             <li><a href="#" data-en="Security" data-am="ደህንነት">Security</a></li>
                             <li><a href="#" data-en="Support" data-am="ድጋፍ">Support</a></li>
-                            <li><a href="/signin.html" data-en="Sign In" data-am="ግባ">Sign In</a></li>
+                            <li><a href="/register" data-en="Open Account" data-am="አካውንት ይክፈቱ">Open Account</a></li>
+                            <li><a href="/signin" data-en="Sign In" data-am="ይግቡ">Sign In</a></li>
                         </ul>
                     </nav>
                 </div>
@@ -241,6 +249,6 @@
     </div>
 
     <script type="module" src="/script.js"></script>
-    <script src="/landing.js"></script>
+    <script type="module" src="/landing.js"></script>
 </body>
 </html>

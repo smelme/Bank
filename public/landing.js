@@ -1,19 +1,17 @@
 // Shared header interactions (theme, language, mobile menu, plus landing-only niceties)
 // Safe to include on any public page; it no-ops when elements aren't present.
 
-// Language Switching Functionality
-const langButtons = document.querySelectorAll('.lang-btn');
-const languageContents = document.querySelectorAll('.language-content');
+// Cleanup functions array for SPA lifecycle
+let cleanupFunctions = [];
 
-function applyLang(lang) {
-  if (!langButtons.length && !languageContents.length) {
-    // Page doesn't use the landing bilingual blocks. Still persist preference.
-    localStorage.setItem('preferredLanguage', lang);
-    document.documentElement.lang = lang;
+// Language Switching Functionality
+function applyLandingLang(lang) {
+  const languageContents = document.querySelectorAll('.language-content');
+  
+  if (!languageContents.length) {
+    // Page doesn't use the landing bilingual blocks
     return;
   }
-  // Update active language button
-  langButtons.forEach((btn) => btn.classList.toggle('active', btn.getAttribute('data-lang') === lang));
 
   // Show/hide language content
   languageContents.forEach((content) => {
@@ -27,85 +25,171 @@ function applyLang(lang) {
       element.textContent = text;
     }
   });
+}
 
+async function tryApplyI18nLang(lang) {
+  // If the main i18n system is available, use it.
+  if (window.i18n && typeof window.i18n.setLanguage === 'function') {
+    await window.i18n.setLanguage(lang);
+  }
+}
+
+async function applyLang(lang) {
+  // Update body lang attribute for CSS
+  document.body.setAttribute('lang', lang);
   // Update document language attribute
   document.documentElement.lang = lang;
-
   // Save preference
-  localStorage.setItem('preferredLanguage', lang);
+  localStorage.setItem('tamange.lang', lang);
+  
+  // Apply landing page specific language
+  applyLandingLang(lang);
+  
+  // Apply i18n system if available
+  await tryApplyI18nLang(lang);
 }
 
-langButtons.forEach((button) => {
-  button.addEventListener('click', function () {
-    const lang = this.getAttribute('data-lang');
-    applyLang(lang);
+function toggleLanguage() {
+  const currentLang = document.body.getAttribute('lang') || 'en';
+  const newLang = currentLang === 'en' ? 'am' : 'en';
+  applyLang(newLang);
+}
+
+function initLanguageToggle() {
+  const languageToggle = document.getElementById('languageToggle');
+  const langLabels = document.querySelectorAll('.lang-label');
+
+  if (languageToggle) {
+    const clickHandler = () => toggleLanguage();
+    const keydownHandler = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleLanguage();
+      }
+    };
+
+    languageToggle.addEventListener('click', clickHandler);
+    languageToggle.addEventListener('keydown', keydownHandler);
+
+    cleanupFunctions.push(() => {
+      languageToggle.removeEventListener('click', clickHandler);
+      languageToggle.removeEventListener('keydown', keydownHandler);
+    });
+  }
+
+  // Allow clicking on labels to toggle
+  langLabels.forEach((label) => {
+    const clickHandler = () => toggleLanguage();
+    label.addEventListener('click', clickHandler);
+    cleanupFunctions.push(() => {
+      label.removeEventListener('click', clickHandler);
+    });
   });
-});
+}
 
 // Theme Toggle Functionality
-const themeToggle = document.getElementById('themeToggle');
-const body = document.body;
+function initThemeToggle() {
+  const themeToggle = document.getElementById('themeToggle');
+  const body = document.body;
 
-// Check for saved theme or prefer-color-scheme
-const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-const savedTheme = localStorage.getItem('theme');
+  // Check for saved theme or prefer-color-scheme
+  const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+  const savedTheme = localStorage.getItem('theme');
 
-if (savedTheme === 'light' || (!savedTheme && !prefersDarkScheme.matches)) {
-  body.classList.add('light-theme');
-}
-
-function toggleTheme() {
-  body.classList.toggle('light-theme');
-  const isLightTheme = body.classList.contains('light-theme');
-  localStorage.setItem('theme', isLightTheme ? 'light' : 'dark');
-}
-
-themeToggle?.addEventListener('click', toggleTheme);
-themeToggle?.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' || e.key === ' ') {
-    e.preventDefault();
-    toggleTheme();
+  if (savedTheme === 'light' || (!savedTheme && !prefersDarkScheme.matches)) {
+    body.classList.add('light-theme');
   }
-});
+
+  function toggleTheme() {
+    body.classList.toggle('light-theme');
+    const isLightTheme = body.classList.contains('light-theme');
+    localStorage.setItem('theme', isLightTheme ? 'light' : 'dark');
+  }
+
+  if (themeToggle) {
+    const clickHandler = () => toggleTheme();
+    const keydownHandler = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleTheme();
+      }
+    };
+
+    themeToggle.addEventListener('click', clickHandler);
+    themeToggle.addEventListener('keydown', keydownHandler);
+
+    cleanupFunctions.push(() => {
+      themeToggle.removeEventListener('click', clickHandler);
+      themeToggle.removeEventListener('keydown', keydownHandler);
+    });
+  }
+}
 
 // Mobile Menu Toggle
-const mobileMenuToggle = document.getElementById('mobileMenuToggle');
-const mainNav = document.getElementById('mainNav');
+function initMobileMenu() {
+  const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+  const mainNav = document.getElementById('mainNav');
 
-mobileMenuToggle?.addEventListener('click', function () {
-  mainNav?.classList.toggle('active');
+  if (!mobileMenuToggle || !mainNav) return;
 
-  // Change icon
-  const icon = mobileMenuToggle.querySelector('i');
-  if (!icon) return;
+  const toggleHandler = function () {
+    mainNav.classList.toggle('active');
 
-  if (mainNav?.classList.contains('active')) {
-    icon.classList.remove('fa-bars');
-    icon.classList.add('fa-times');
-  } else {
-    icon.classList.remove('fa-times');
-    icon.classList.add('fa-bars');
-  }
-});
-
-// Close mobile menu when clicking outside
-document.addEventListener('click', function (event) {
-  if (!mainNav || !mobileMenuToggle) return;
-  if (!mainNav.contains(event.target) && !mobileMenuToggle.contains(event.target) && window.innerWidth <= 992) {
-    mainNav.classList.remove('active');
+    // Change icon
     const icon = mobileMenuToggle.querySelector('i');
-    if (icon) {
+    if (!icon) return;
+
+    if (mainNav.classList.contains('active')) {
+      icon.classList.remove('fa-bars');
+      icon.classList.add('fa-times');
+    } else {
       icon.classList.remove('fa-times');
       icon.classList.add('fa-bars');
     }
-  }
-});
+  };
+
+  mobileMenuToggle.addEventListener('click', toggleHandler);
+
+  // Close mobile menu when clicking outside
+  const outsideClickHandler = function (event) {
+    if (!mainNav.contains(event.target) && !mobileMenuToggle.contains(event.target) && window.innerWidth <= 992) {
+      mainNav.classList.remove('active');
+      const icon = mobileMenuToggle.querySelector('i');
+      if (icon) {
+        icon.classList.remove('fa-times');
+        icon.classList.add('fa-bars');
+      }
+    }
+  };
+
+  document.addEventListener('click', outsideClickHandler);
+
+  // Window resize handler
+  const resizeHandler = function () {
+    if (window.innerWidth > 992) {
+      mainNav.classList.remove('active');
+      const icon = mobileMenuToggle.querySelector('i');
+      if (icon) {
+        icon.classList.remove('fa-times');
+        icon.classList.add('fa-bars');
+      }
+    }
+  };
+
+  window.addEventListener('resize', resizeHandler);
+
+  cleanupFunctions.push(() => {
+    mobileMenuToggle.removeEventListener('click', toggleHandler);
+    document.removeEventListener('click', outsideClickHandler);
+    window.removeEventListener('resize', resizeHandler);
+  });
+}
 
 // Wire CTAs to existing app routes
 function wireCtas() {
   const ctaButtons = document.querySelectorAll('.cta-button, .cta-button-large');
   ctaButtons.forEach((btn) => {
-    btn.addEventListener('click', (e) => {
+    const clickHandler = (e) => {
       // Only intercept CTAs that would otherwise keep you on-page.
       // If it's a real link to another route, let it behave naturally.
       if (btn.tagName === 'A') {
@@ -113,49 +197,74 @@ function wireCtas() {
         if (href && href !== '#' && !href.startsWith('#')) return;
       }
       e.preventDefault();
-      window.location.href = '/register.html';
+      window.location.href = '/register';
+    };
+
+    btn.addEventListener('click', clickHandler);
+    cleanupFunctions.push(() => {
+      btn.removeEventListener('click', clickHandler);
     });
   });
 }
 
 // Feature card animation
-const observerOptions = {
-  threshold: 0.1,
-  rootMargin: '0px 0px -50px 0px',
-};
+function initFeatureCardAnimation() {
+  const observerOptions = {
+    threshold: 0.1,
+    rootMargin: '0px 0px -50px 0px',
+  };
 
-const observer = new IntersectionObserver((entries) => {
-  entries.forEach((entry) => {
-    if (entry.isIntersecting) {
-      entry.target.style.opacity = '1';
-      entry.target.style.transform = 'translateY(0)';
-    }
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (entry.isIntersecting) {
+        entry.target.style.opacity = '1';
+        entry.target.style.transform = 'translateY(0)';
+      }
+    });
+  }, observerOptions);
+
+  document.querySelectorAll('.feature-card').forEach((card) => {
+    card.style.opacity = '0';
+    card.style.transform = 'translateY(20px)';
+    card.style.transition = 'opacity 0.5s, transform 0.5s';
+    observer.observe(card);
   });
-}, observerOptions);
 
-document.querySelectorAll('.feature-card').forEach((card) => {
-  card.style.opacity = '0';
-  card.style.transform = 'translateY(20px)';
-  card.style.transition = 'opacity 0.5s, transform 0.5s';
-  observer.observe(card);
-});
+  cleanupFunctions.push(() => {
+    observer.disconnect();
+  });
+}
 
-// Window resize handler to handle menu on resize
-window.addEventListener('resize', function () {
-  if (!mainNav || !mobileMenuToggle) return;
-  if (window.innerWidth > 992) {
-    mainNav.classList.remove('active');
-    const icon = mobileMenuToggle.querySelector('i');
-    if (icon) {
-      icon.classList.remove('fa-times');
-      icon.classList.add('fa-bars');
-    }
-  }
-});
+// SPA mount function - called when landing page loads in SPA
+export function spaMount() {
+  // Clear any previous cleanup functions
+  cleanupFunctions.forEach(fn => fn());
+  cleanupFunctions = [];
 
-// Initialize page with proper language
-document.addEventListener('DOMContentLoaded', function () {
-  const savedLang = localStorage.getItem('preferredLanguage') || 'en';
+  // Initialize language with saved preference
+  const savedLang = localStorage.getItem('tamange.lang') || 'en';
   applyLang(savedLang);
+
+  // Initialize all interactive features
+  initLanguageToggle();
+  initThemeToggle();
+  initMobileMenu();
   wireCtas();
-});
+  initFeatureCardAnimation();
+
+  // Return cleanup function for SPA teardown
+  return () => {
+    cleanupFunctions.forEach(fn => fn());
+    cleanupFunctions = [];
+  };
+}
+
+// For standalone page loads (non-SPA), initialize on DOMContentLoaded
+// This only runs when loaded as a regular script (not as module)
+if (typeof document !== 'undefined' && !import.meta.url) {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', spaMount);
+  } else {
+    spaMount();
+  }
+}

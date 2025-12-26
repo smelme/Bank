@@ -39,6 +39,19 @@ const __dirname = path.dirname(__filename);
 
 app.use(cors());
 app.use(bodyParser.json());
+
+// --- SPA routing (History API) ---
+// Redirect legacy *.html routes to clean paths BEFORE static middleware.
+app.get(['/index.html', '/signin.html', '/register.html', '/home.html'], (req, res) => {
+    const map = {
+        '/index.html': '/',
+        '/signin.html': '/signin',
+        '/register.html': '/register',
+        '/home.html': '/home',
+    };
+    return res.redirect(302, map[req.path] || '/');
+});
+
 app.use(express.static('public'));
 
 // Middleware to handle ES module imports without .js extension
@@ -62,6 +75,23 @@ app.use('/node_modules', express.static('node_modules'));
 app.use('/models', express.static('models'));
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
+
+// Serve the SPA shell for app routes.
+// This is intentionally strict about what it catches:
+//  - GET only
+//  - Not API endpoints
+//  - Not asset/file requests (having an extension)
+//  - Only known SPA paths
+function serveSpaShell(req, res) {
+    return res.sendFile(path.join(__dirname, 'public', 'app.html'));
+}
+
+app.get(['/', '/signin', '/register', '/home'], (req, res) => {
+    // If a proxy/CDN rewrites routes, this ensures we still serve HTML.
+    // Avoid catching requests for files like /styles.css.
+    if (path.extname(req.path)) return res.status(404).end();
+    return serveSpaShell(req, res);
+});
 
 // In-memory store for session data (nonce -> jwk)
 // Short-lived, only used during credential exchange

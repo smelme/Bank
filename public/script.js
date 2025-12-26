@@ -7,10 +7,66 @@ let selectedAccountType = null;
 // Initialize i18n (language selector + initial translations)
 initI18n();
 
+// Step id → numeric index mapping
+const stepOrder = ['step-welcome', 'step-verify', 'step-details', 'step-confirm'];
+
+// Hero content per step (title + intro)
+const heroContent = {
+  'step-welcome': {
+    titleKey: 'welcomeTitle',
+    titleDefault: 'Welcome to Tamange Bank',
+    introKey: 'welcomeIntro',
+    introDefault: 'Open your bank account in minutes using your mobile driver\'s license or digital ID. We\'ll securely verify your identity using the latest digital credentials technology.'
+  },
+  'step-verify': {
+    titleKey: 'verifyYourIdentity',
+    titleDefault: 'Verify Your Identity',
+    introKey: 'verifyHelpText',
+    introDefault: 'Click the button below to share your digital credentials. We will request your name, date of birth, and document details.'
+  },
+  'step-details': {
+    titleKey: 'completeRegistration',
+    titleDefault: 'Complete Your Registration',
+    introKey: 'completeRegistrationIntro',
+    introDefault: 'Choose your account type and provide your contact information to finish setting up your account.'
+  },
+  'step-confirm': {
+    titleKey: 'accountCreatedSuccessfully',
+    titleDefault: 'Account Created Successfully!',
+    introKey: 'confirmIntro',
+    introDefault: 'Your account is now active. You can sign in using your digital ID.'
+  }
+};
+
 // Step navigation
 function showStep(stepId) {
+    // Hide all cards
     document.querySelectorAll('.card').forEach(card => card.classList.add('hidden'));
-    document.getElementById(stepId).classList.remove('hidden');
+    document.getElementById(stepId)?.classList.remove('hidden');
+
+    // Update stepper indicator
+    const idx = stepOrder.indexOf(stepId);
+    document.querySelectorAll('.stepper-step').forEach(li => {
+        const liIdx = parseInt(li.getAttribute('data-step'), 10);
+        li.classList.remove('active', 'completed');
+        if (liIdx < idx) li.classList.add('completed');
+        else if (liIdx === idx) li.classList.add('active');
+    });
+
+    // Update hero title/intro
+    const hero = heroContent[stepId];
+    if (hero) {
+        const titleEl = document.getElementById('heroTitle');
+        const introEl = document.getElementById('heroIntro');
+        if (titleEl) {
+            const titleTranslation = t(hero.titleKey);
+            titleEl.textContent = (titleTranslation !== hero.titleKey) ? titleTranslation : hero.titleDefault;
+        }
+        if (introEl) {
+            const introTranslation = t(hero.introKey);
+            introEl.textContent = (introTranslation !== hero.introKey) ? introTranslation : hero.introDefault;
+        }
+    }
 }
 
 // Start registration
@@ -38,6 +94,12 @@ function validateForm() {
 
     const isValid = email && phone && address && city && terms && selectedAccountType;
     document.getElementById('submitBtn').disabled = !isValid;
+    
+    // Hide error message when user makes changes
+    const errorDisplay = document.getElementById('registrationError');
+    if (errorDisplay && !errorDisplay.classList.contains('hidden')) {
+        errorDisplay.classList.add('hidden');
+    }
 }
 
 // Add event listeners for form validation
@@ -90,7 +152,10 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
 
         verifiedData = result;
         displayVerifiedData();
-        showStep('step-account');
+        // SPA view uses "step-details" as the post-verification step
+        showStep('step-details');
+        // Show verified photo if available
+        showVerifiedPhoto();
 
     } catch (error) {
         resultDiv.innerHTML = `<div class="error-box">${t('errorPrefix')} ${error.message}</div>`;
@@ -100,7 +165,10 @@ document.getElementById('verifyBtn').addEventListener('click', async () => {
 
 // Display verified data
 function displayVerifiedData() {
+    // Older non-SPA markup had a dedicated verified data display area.
+    // In the SPA registration view we don't render claims separately, so treat this as optional.
     const display = document.getElementById('verifiedDataDisplay');
+    if (!display) return;
     const data = verifiedData.claims;
     
     let html = `<h3>${t('verifiedInformation')}</h3>`;
@@ -148,6 +216,33 @@ function displayVerifiedData() {
     display.innerHTML = html;
 }
 
+// Show verified photo in step-details
+function showVerifiedPhoto() {
+    if (!verifiedData || !verifiedData.claims) return;
+    
+    const photoDisplay = document.getElementById('verifiedPhotoDisplay');
+    const photoImg = document.getElementById('verifiedPhoto');
+    if (!photoDisplay || !photoImg) return;
+    
+    const portrait = verifiedData.claims.portrait;
+    if (!portrait) return;
+    
+    let portraitSrc = null;
+    if (typeof portrait === 'object' && !portrait.startsWith) {
+        // Convert byte array object to Uint8Array then to base64
+        const bytes = new Uint8Array(Object.values(portrait));
+        const base64 = btoa(String.fromCharCode(...bytes));
+        portraitSrc = `data:image/jpeg;base64,${base64}`;
+    } else if (typeof portrait === 'string') {
+        portraitSrc = portrait;
+    }
+    
+    if (portraitSrc) {
+        photoImg.src = portraitSrc;
+        photoDisplay.classList.remove('hidden');
+    }
+}
+
 // Submit account creation
 document.getElementById('submitBtn').addEventListener('click', async () => {
     const submitBtn = document.getElementById('submitBtn');
@@ -190,10 +285,19 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
             <div class="data-item"><span class="data-label">Email:</span><span class="data-value">${result.account.email}</span></div>
             <div class="data-item"><span class="data-label">${t('createdLabel')}:</span><span class="data-value">${new Date(result.account.createdAt).toLocaleString()}</span></div>
         `;
-        showStep('step-success');
+    // SPA view uses "step-confirm" for success
+    showStep('step-confirm');
 
     } catch (error) {
-        alert(`${t('errorPrefix')} ${error.message}`);
+        // Display error message on page instead of alert
+        const errorDisplay = document.getElementById('registrationError');
+        const errorText = document.getElementById('registrationErrorText');
+        if (errorDisplay && errorText) {
+            errorText.textContent = error.message;
+            errorDisplay.classList.remove('hidden');
+            // Scroll to error message
+            errorDisplay.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         submitBtn.disabled = false;
         submitBtn.textContent = t('createAccount');
     }

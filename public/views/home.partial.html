@@ -1,0 +1,90 @@
+<div class="container">
+  <div class="bank-header">
+    <div class="bank-logo" data-i18n="bankName">TAMANGE BANK</div>
+    <div class="user-section">
+      <div class="user-name" id="userName">Loading...</div>
+      <div>
+        <select class="lang-select" data-lang-selector aria-label="Language">
+          <option value="en">EN</option>
+          <option value="am">አማ</option>
+        </select>
+        <button class="logout-btn" id="logoutBtn" data-i18n="signOut">Sign Out</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loadingSection" class="card loading" data-i18n="loadingAccount">Loading your account information...</div>
+
+  <div id="errorSection" class="card error" style="display: none;">
+    <h3 data-i18n="accessDenied">Access Denied</h3>
+    <p id="errorMessage" data-i18n="pleaseSignIn">Please sign in to access your account.</p>
+    <button id="goSignInBtn" class="action-btn" style="margin-top: 20px; width: 100%;" data-i18n="navSignIn">Sign In</button>
+  </div>
+
+  <div id="dashboardSection" class="dashboard" style="display: none;">
+    <div>
+      <div class="card">
+        <div class="account-header">
+          <div>
+            <h2 id="accountHolderName">Account Holder</h2>
+            <div class="account-number">Account: <span id="accountNumber">-</span></div>
+          </div>
+          <div class="account-type" id="accountType">-</div>
+        </div>
+
+        <div class="balance-section">
+          <div class="balance-label" data-i18n="availableBalance">Available Balance</div>
+          <div class="balance-amount" id="accountBalance">$0.00</div>
+        </div>
+
+        <h3 data-i18n="dashboardQuickActions">Quick Actions</h3>
+        <div class="quick-actions">
+          <button class="action-btn" data-i18n="transferMoney">Transfer Money</button>
+          <button class="action-btn" data-i18n="payBills">Pay Bills</button>
+          <button class="action-btn" data-i18n="depositCheck">Deposit Check</button>
+          <button class="action-btn" data-i18n="viewStatements">View Statements</button>
+        </div>
+      </div>
+
+      <div class="card recent-activity">
+        <h3 data-i18n="dashboardRecentActivity">Recent Activity</h3>
+        <div id="activityList">
+          <div class="activity-item">
+            <span class="activity-desc" data-i18n="accountOpened">Account Opened</span>
+            <span class="activity-date" id="accountCreatedDate">-</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card sidebar-card">
+        <h3 data-i18n="dashboardAccountDetails">Account Details</h3>
+        <div class="info-item">
+          <span class="info-label">Email</span>
+          <span class="info-value" id="accountEmail">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Phone</span>
+          <span class="info-value" id="accountPhone">-</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label" data-i18n="memberSince">Member Since</span>
+          <span class="info-value" id="memberSince">-</span>
+        </div>
+      </div>
+
+      <div class="card sidebar-card">
+        <h3 data-i18n="dashboardSecurity">Security</h3>
+        <div class="info-item">
+          <span class="info-label" data-i18n="authentication">Authentication</span>
+          <span class="info-value" style="color: #10b981;" data-i18n="authDigitalId">Digital ID</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label" data-i18n="biometric">Biometric</span>
+          <span class="info-value" style="color: #10b981;" data-i18n="biometricEnabled">Enabled</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

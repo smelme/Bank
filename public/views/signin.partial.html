@@ -1,0 +1,60 @@
+<!-- Sign-in app body (SPA view). Header is provided by app.html. -->
+<div class="container">
+  <div class="hero">
+    <h1 data-i18n="signInToYourAccount">Sign In to Your Account</h1>
+    <p data-i18n="signInIntro">
+      Sign in securely using your digital driver's license or PhotoID digital credential. We'll verify your identity and then confirm it's really you with facial recognition.
+    </p>
+  </div>
+
+  <!-- Step 1: Welcome & Digital ID Verification -->
+  <div id="step-verify" class="card">
+    <h3 data-i18n="howItWorks">How it works:</h3>
+    <ul>
+      <li data-i18n="howStep1">Verify your digital ID credentials (driver's license or PhotoID)</li>
+      <li data-i18n="howStep2">Confirm your identity with facial recognition</li>
+      <li data-i18n="howStep3">Access your account securely</li>
+    </ul>
+    <button id="verifyBtn" class="btn-primary" style="margin-top: 30px;" data-i18n="signInWithDigitalId">Sign In with Digital ID</button>
+    <div id="verifyResult" style="margin-top: 20px;"></div>
+  </div>
+
+  <!-- Step 2: Biometric Verification -->
+  <div id="step-biometric" class="card hidden">
+    <h2 data-i18n="facialRecognitionVerification">Facial Recognition Verification</h2>
+
+    <div id="verifiedDataDisplay" class="verified-data"></div>
+
+    <div class="info-box">
+      <p><strong data-i18n="verifyYourIdentity">Verify Your Identity</strong></p>
+      <p data-i18n="biometricHelp">
+        To ensure it's really you, we need to compare your face with the photo on your digital ID. Click "Start Camera" and position your face in the frame.
+      </p>
+    </div>
+
+    <div class="camera-section">
+      <div id="cameraStatus"></div>
+
+      <div id="videoContainer" class="video-container hidden">
+        <video id="video" autoplay playsinline></video>
+      </div>
+
+      <div id="capturePreview" class="capture-preview hidden"></div>
+
+      <canvas id="canvas"></canvas>
+
+      <button id="startCameraBtn" class="btn-primary" data-i18n="startCamera">Start Camera</button>
+      <button id="captureBtn" class="btn-secondary hidden" data-i18n="captureAndVerify">Capture & Verify</button>
+      <button id="retakeBtn" class="btn-primary hidden" data-i18n="retakePhoto">Retake Photo</button>
+    </div>
+
+    <div id="biometricResult" style="margin-top: 20px;"></div>
+  </div>
+
+  <!-- Step 3: Error Display -->
+  <div id="step-error" class="card hidden">
+    <h2 data-i18n="signInFailed">Sign-In Failed</h2>
+    <div id="errorMessage" class="error-box"></div>
+    <button id="tryAgainBtn" class="btn-primary" data-i18n="tryAgain">Try Again</button>
+  </div>
+</div>

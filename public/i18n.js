@@ -24,9 +24,9 @@ const dict = {
     welcomeTitle: 'Welcome to Tamange Bank',
     digitalIdentityVerification: 'Digital Identity Verification',
     welcomeIntro:
-      "Open your bank account in minutes using your mobile driver's license or digital ID. We'll securely verify your identity using the latest digital credentials technology.",
+      "Open your bank account in minutes using your digital driver's license or digital ID. We'll securely verify your identity using the latest digital credentials technology.",
     whatYouNeed: "What you'll need:",
-    needCredential: 'A mobile driver\'s license (mDL) or PhotoID digital credential',
+    needCredential: 'A digital driver\'s license or PhotoID digital credential',
     needAge: 'You must be 18 years or older',
     needContact: 'A valid email address and phone number',
     startRegistration: 'Start Registration',
@@ -97,9 +97,9 @@ const dict = {
     signInToYourAccount: 'Sign In to Your Account',
     secureSignInWithDigitalId: 'Secure Sign-In with Digital ID',
     signInIntro:
-      "Sign in securely using your mobile driver's license (mDL) or PhotoID digital credential. We'll verify your identity and then confirm it's really you with facial recognition.",
+      "Sign in securely using your digital driver's license or PhotoID digital credential. We'll verify your identity and then confirm it's really you with facial recognition.",
     howItWorks: 'How it works:',
-    howStep1: 'Verify your digital ID credentials (mDL or PhotoID)',
+    howStep1: 'Verify your digital ID credentials (driver\'s license or PhotoID)',
     howStep2: 'Confirm your identity with facial recognition',
     howStep3: 'Access your account securely',
     signInWithDigitalId: 'Sign In with Digital ID',
@@ -147,10 +147,10 @@ const dict = {
     failedLoadAccountTryAgain: 'Failed to load account information. Please try again.',
   },
   am: {
-    bankName: 'ተማንጌ ባንክ',
+    bankName: 'ታማኝ ባንክ',
     tagline: 'ደህንነታማ ባንኪንግ። ዲጂታል መታወቂያ። የታመነ አገልግሎት።',
     navOpenAccount: 'መለያ ክፈት',
-    navSignIn: 'ግባ',
+    navSignIn: 'ይግቡ',
     signOut: 'ውጣ',
     accessDenied: 'መዳረሻ ተከልክሏል',
     pleaseSignIn: 'መለያዎን ለመመልከት እባክዎ ግቡ።',
@@ -163,13 +163,13 @@ const dict = {
     biometricEnabled: 'ተከናውኗል',
 
     // Registration (index)
-    regTitle: 'ተማንጌ ባንክ - መለያ መመዝገቢያ',
-    welcomeTitle: 'እንኳን ወደ ተማንጌ ባንክ በደህና መጡ',
+    regTitle: 'ታማኝ ባንክ - መለያ መመዝገቢያ',
+    welcomeTitle: 'እንኳን ወደ ታማኝ ባንክ በደህና መጡ',
     digitalIdentityVerification: 'ዲጂታል መታወቂያ ማረጋገጫ',
     welcomeIntro:
       'የሞባይል የመንጃ ፈቃድዎን ወይም ዲጂታል መታወቂያዎን በመጠቀም በጥቂት ደቂቃዎች ውስጥ የባንክ መለያ ይክፈቱ። መለያዎን በዘመናዊ ዲጂታል ማረጋገጫ ቴክኖሎጂ በደህንነት እናረጋግጣለን።',
     whatYouNeed: 'የሚያስፈልግዎ:',
-    needCredential: 'የሞባይል የመንጃ ፈቃድ (mDL) ወይም PhotoID ዲጂታል መታወቂያ',
+    needCredential: 'ዋና የመንጃ ፈቃድ ወይም PhotoID ዲጂታል መታወቂያ',
     needAge: '18 ዓመት ወይም ከዚያ በላይ መሆን አለብዎት',
     needContact: 'ትክክለኛ ኢሜይል እና የስልክ ቁጥር',
     startRegistration: 'መመዝገብ ጀምር',
@@ -220,7 +220,7 @@ const dict = {
     createdLabel: 'ተፈጥሯል',
     nextSteps: 'ቀጣይ እርምጃዎች:',
     nextCheckEmail: 'የመለያ ማረጋገጫ ኢሜይልዎን ይመልከቱ',
-    nextDownloadApp: 'የተማንጌ ባንክ ሞባይል መተግበሪያን ያውርዱ',
+    nextDownloadApp: 'የታማኝ ባንክ ሞባይል መተግበሪያን ያውርዱ',
     nextSetupOnline: 'የመስመር ላይ ባንኪንግ መግቢያዎችን ያቀናብሩ',
     nextFirstDeposit: 'የመጀመሪያዎን ተቀማጭ ያድርጉ',
 
@@ -236,16 +236,16 @@ const dict = {
     missingRequiredFields: 'አስፈላጊ መስኮች አልተሞሉም',
 
     // Sign-in (signin)
-    signInTitle: 'ተማንጌ ባንክ - መግቢያ',
+    signInTitle: 'ታማኝ ባንክ - መግቢያ',
     signInToYourAccount: 'ወደ መለያዎ ይግቡ',
     secureSignInWithDigitalId: 'በዲጂታል መታወቂያ ደህንነታማ መግቢያ',
     signInIntro:
-      'የሞባይል የመንጃ ፈቃድ (mDL) ወይም PhotoID ዲጂታል መታወቂያ በመጠቀም በደህንነት ይግቡ። መጀመሪያ መታወቂያዎን እናረጋግጣለን እና ከዚያ በፊት ፎቶ መለያ ማረጋገጫ እናደርጋለን።',
+      'ዋና የመንጃ ፈቃድ ወይም PhotoID ዲጂታል መታወቂያ በመጠቀም በደህንነት ይግቡ። መጀመሪያ መታወቂያዎን እናረጋግጣለን እና ከዚያ በፊት ፎቶ መለያ ማረጋገጫ እናደርጋለን።',
     howItWorks: 'እንዴት ይሰራል:',
-    howStep1: 'ዲጂታል መታወቂያዎን (mDL ወይም PhotoID) ያረጋግጡ',
+    howStep1: 'ዲጂታል መታወቂያዎን (የመንጃ ፈቃድ ወይም PhotoID) ያረጋግጡ',
     howStep2: 'በፊት ማረጋገጫ መታወቂያዎን ያረጋግጡ',
     howStep3: 'ወደ መለያዎ በደህንነት ይግቡ',
-    signInWithDigitalId: 'በዲጂታል መታወቂያ ግባ',
+    signInWithDigitalId: 'በዲጂታል መታወቂያ ይግቡ',
     verifyingDigitalId: 'ዲጂታል መታወቂያን በማረጋገጥ ላይ...',
     facialRecognitionVerification: 'የፊት መለያ ማረጋገጫ',
     biometricHelp:
@@ -272,7 +272,7 @@ const dict = {
     verificationFailedTitle: 'ማረጋገጫ አልተሳካም',
 
     // Home (dashboard)
-    homeTitle: 'ተማንጌ ባንክ - መነሻ',
+    homeTitle: 'ታማኝ ባንክ - መነሻ',
     availableBalance: 'ሊጠቀሙ የሚችሉት ብዛት',
     transferMoney: 'ገንዘብ አስተላልፍ',
     payBills: 'ቢሎችን ክፈል',
