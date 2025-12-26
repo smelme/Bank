@@ -65,38 +65,67 @@ function showError(message) {
     document.getElementById('errorMessage').textContent = message;
 }
 
-// Logout
-document.getElementById('logoutBtn').addEventListener('click', async () => {
-    const sessionToken = sessionStorage.getItem('sessionToken');
-    
-    if (sessionToken) {
+function initLogoutButton() {
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (!logoutBtn) return;
+
+    const logoutHandler = async () => {
+        const sessionToken = sessionStorage.getItem('sessionToken');
+        
+        if (sessionToken) {
+            try {
+                await fetch('/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ sessionToken })
+                });
+            } catch (error) {
+                console.error('Logout error:', error);
+            }
+        }
+
+        sessionStorage.removeItem('sessionToken');
+        
+        // Refresh nav state and redirect to landing
         try {
-            await fetch('/logout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ sessionToken })
-            });
-        } catch (error) {
-            console.error('Logout error:', error);
+            const header = await import('../core/header.js');
+            if (typeof header.refreshNavState === 'function') {
+                header.refreshNavState();
+            }
+        } catch (e) {
+            console.warn('Could not refresh nav state:', e);
         }
-    }
+        
+        window.location.href = '/';
+    };
 
-    sessionStorage.removeItem('sessionToken');
+    logoutBtn.addEventListener('click', logoutHandler);
     
-    // Refresh nav state and redirect to landing
-    try {
-        const header = await import('../core/header.js');
-        if (typeof header.refreshNavState === 'function') {
-            header.refreshNavState();
-        }
-    } catch (e) {
-        console.warn('Could not refresh nav state:', e);
-    }
-    
-    window.location.href = '/';
-});
+    // Return cleanup function
+    return () => {
+        logoutBtn.removeEventListener('click', logoutHandler);
+    };
+}
 
-// Load account on page load
-loadAccount();
+// SPA mount function
+export async function spaMount() {
+    // Initialize logout button
+    const cleanupLogout = initLogoutButton();
+    
+    // Load account data
+    await loadAccount();
+    
+    // Return cleanup function
+    return () => {
+        if (cleanupLogout) cleanupLogout();
+    };
+}
+
+// For standalone page loads (non-SPA)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', spaMount);
+} else {
+    spaMount();
+}
