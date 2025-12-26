@@ -334,6 +334,8 @@ export function t(key, varsOrLang, maybeLang) {
 
 export function applyTranslations(lang = getLanguage()) {
   document.documentElement.lang = lang === 'am' ? 'am' : 'en';
+  // Also set body lang for CSS selectors (e.g., language toggle slider position)
+  document.body.setAttribute('lang', lang === 'am' ? 'am' : 'en');
 
   // Apply text translations
   document.querySelectorAll('[data-i18n]').forEach((el) => {
