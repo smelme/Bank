@@ -242,7 +242,22 @@ function wireCtas() {
 
 // Check if user is signed in
 function isSignedIn() {
-  return !!sessionStorage.getItem('sessionToken');
+  // Consider either legacy session token, OIDC tokens (from token-exchange), or passkeyAuth
+  try {
+    if (sessionStorage.getItem('sessionToken')) return true;
+    if (sessionStorage.getItem('oidc_access_token') || localStorage.getItem('oidc_access_token')) return true;
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const raw = localStorage.getItem('passkeyAuth');
+    if (!raw) return false;
+    const info = JSON.parse(raw);
+    return info && info.authenticated === true;
+  } catch (e) {
+    return false;
+  }
 }
 
 // Update navigation based on auth state

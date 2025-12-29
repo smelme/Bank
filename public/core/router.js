@@ -15,6 +15,7 @@ const routes = {
   '/signin': { view: '/views/signin.partial.html', title: 'Tamange Bank - Sign In', controller: '/pages/signin.js' },
   '/register': { view: '/views/register.partial.html', title: 'Tamange Bank - Register', controller: '/pages/register.js' },
   '/home': { view: '/views/home.partial.html', title: 'Tamange Bank - Home', controller: '/pages/home.js' },
+  '/callback': { view: null, title: 'Tamange Bank - Signing In...', controller: '/pages/callback.js' },
 };
 
 function normalizePath(pathname) {
@@ -131,7 +132,9 @@ async function render(pathname = window.location.pathname) {
   if (!route) return;
 
   // Redirect signed-in users from landing page to home
-  if (route.path === '/' && sessionStorage.getItem('sessionToken')) {
+  // Check for OIDC token instead of old sessionToken
+  const hasOidcToken = sessionStorage.getItem('oidc_access_token');
+  if (route.path === '/' && hasOidcToken) {
     return navigate('/home', { replace: true });
   }
 
@@ -143,8 +146,15 @@ async function render(pathname = window.location.pathname) {
   outlet.innerHTML = `<div class="container" style="padding: 24px 0;"><div class="loading">Loading...</div></div>`;
 
   try {
-    const html = await fetchView(route.view);
-    outlet.innerHTML = html;
+    // Special handling for callback route (no view to fetch)
+    if (route.path === '/callback') {
+      outlet.innerHTML = `<div class="container" style="padding: 24px 0;"><div class="loading">Completing sign in...</div></div>`;
+    } else {
+      const html = await fetchView(route.view);
+      outlet.innerHTML = html;
+    }
+    const html = route.view ? await fetchView(route.view) : '';
+    if (html) outlet.innerHTML = html;
 
     // Minor view-specific wiring
     if (route.path === '/home') {

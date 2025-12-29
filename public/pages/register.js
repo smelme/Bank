@@ -86,6 +86,18 @@ document.getElementById('startBtn').addEventListener('click', () => {
     showStep('step-verify');
 });
 
+// Helper: encode ArrayBuffer/Uint8Array to base64url string
+function arrayBufferToBase64Url(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+    }
+    const b64 = btoa(binary);
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 // Account type selection
 document.querySelectorAll('.account-type').forEach(card => {
     card.addEventListener('click', () => {
@@ -262,45 +274,130 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     submitBtn.textContent = t('creatingAccount');
 
     try {
-        const accountData = {
-            verifiedData: verifiedData,
-            accountType: selectedAccountType,
-            email: document.getElementById('email').value,
+        if (!verifiedData || !verifiedData.claims) {
+            throw new Error('No verified identity data available');
+        }
+
+        const claims = verifiedData.claims;
+        
+        // Generate username from document number or email
+        const email = document.getElementById('email').value;
+        const documentNumber = claims.document_number || '';
+        const username = email.split('@')[0] || documentNumber.replace(/[^a-zA-Z0-9]/g, '');
+        
+        // Register user in Orchestrator + Keycloak
+        const registerData = {
+            username,
+            email,
             phone: document.getElementById('phone').value,
-            address: document.getElementById('address').value,
-            city: document.getElementById('city').value,
-            state: document.getElementById('state').value,
-            zipCode: document.getElementById('zipCode').value
+            givenName: claims.given_name,
+            familyName: claims.family_name,
+            birthDate: claims.birth_date,
+            documentNumber: claims.document_number,
+            documentType: 'mdl', // or 'photo_id' based on your flow
+            issuingAuthority: claims.issuing_authority,
+            faceDescriptor: verifiedData.faceDescriptor // if you capture face data
         };
 
-        const response = await fetch('/create-account', {
+        submitBtn.textContent = 'Registering user...';
+        
+        const registerResponse = await fetch('/v1/users/register', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(accountData)
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(registerData)
         });
 
-        const result = await response.json();
+        const registerResult = await registerResponse.json();
 
-        if (!result.success) {
-            throw new Error(result.error || 'Account creation failed');
+        if (!registerResult.success) {
+            throw new Error(registerResult.error || 'Registration failed');
+        }
+
+        const { user } = registerResult;
+        
+        console.log('✓ User registered successfully:', user);
+        
+        // Now enroll passkey
+        submitBtn.textContent = 'Enrolling passkey...';
+        console.log('Starting passkey enrollment for user:', user.id);
+        
+        try {
+            // Get registration options
+            console.log('Fetching passkey registration options...');
+            const optionsResponse = await fetch('/v1/passkeys/register/options', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId: user.id, 
+                    username: user.username 
+                })
+            });
+
+            const options = await optionsResponse.json();
+            console.log('✓ Received passkey options:', options);
+
+            // Start WebAuthn ceremony
+            console.log('Starting WebAuthn ceremony...');
+            const credential = await navigator.credentials.create({
+                publicKey: {
+                    ...options,
+                    challenge: Uint8Array.from(atob(options.challenge.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0)),
+                    user: {
+                        ...options.user,
+                        id: Uint8Array.from(atob(options.user.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
+                    },
+                    excludeCredentials: options.excludeCredentials?.map(cred => ({
+                        ...cred,
+                        id: Uint8Array.from(atob(cred.id.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0))
+                    })) || []
+                }
+            });
+
+            // Verify credential
+            const verifyResponse = await fetch('/v1/passkeys/register/verify', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: user.id,
+                    credential: {
+                        id: credential.id,
+                        rawId: arrayBufferToBase64Url(credential.rawId),
+                        response: {
+                            clientDataJSON: arrayBufferToBase64Url(credential.response.clientDataJSON),
+                            attestationObject: arrayBufferToBase64Url(credential.response.attestationObject),
+                            transports: credential.response.getTransports ? credential.response.getTransports() : []
+                        },
+                        type: credential.type
+                    }
+                })
+            });
+
+            const verifyResult = await verifyResponse.json();
+
+            console.log('Passkey registration verify result:', verifyResult);
+
+            if (!verifyResult.verified) {
+                console.warn('Passkey enrollment failed, but user is registered');
+            }
+        } catch (passkeyError) {
+            console.warn('Passkey enrollment failed:', passkeyError);
+            // Continue anyway - user is registered, passkey is optional
         }
 
         // Display success
         const accountDetails = document.getElementById('accountDetails');
         accountDetails.innerHTML = `
-            <h3>${t('yourAccountInformation')}</h3>
-            <div class="data-item"><span class="data-label">${t('accountNumberLabel')}:</span><span class="data-value">${result.account.accountNumber}</span></div>
-            <div class="data-item"><span class="data-label">${t('accountTypeLabel')}:</span><span class="data-value">${result.account.accountType.charAt(0).toUpperCase() + result.account.accountType.slice(1)}</span></div>
-            <div class="data-item"><span class="data-label">${t('accountHolder')}:</span><span class="data-value">${result.account.fullName}</span></div>
-            <div class="data-item"><span class="data-label">Email:</span><span class="data-value">${result.account.email}</span></div>
-            <div class="data-item"><span class="data-label">${t('createdLabel')}:</span><span class="data-value">${new Date(result.account.createdAt).toLocaleString()}</span></div>
+            <h3>Registration Successful!</h3>
+            <div class="data-item"><span class="data-label">Username:</span><span class="data-value">${user.username}</span></div>
+            <div class="data-item"><span class="data-label">Email:</span><span class="data-value">${user.email}</span></div>
+            <div class="data-item"><span class="data-label">Name:</span><span class="data-value">${user.givenName} ${user.familyName}</span></div>
+            <p style="margin-top: 16px;">You can now <a href="/signin">sign in</a> using your passkey.</p>
         `;
-    // SPA view uses "step-confirm" for success
-    showStep('step-confirm');
+        
+        showStep('step-confirm');
 
     } catch (error) {
+        console.error('Registration error:', error);
         // Display error message on page instead of alert
         const errorDisplay = document.getElementById('registrationError');
         const errorText = document.getElementById('registrationErrorText');

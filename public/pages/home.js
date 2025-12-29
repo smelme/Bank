@@ -1,31 +1,53 @@
 import { t } from '../core/i18n.js';
+import { getAccessToken, getUserInfo, isAuthenticated, signOut } from '/core/oidc-config.js';
 
 // Check session and load account data
 async function loadAccount() {
-    const sessionToken = sessionStorage.getItem('sessionToken');
-
-    if (!sessionToken) {
+    // Check for OIDC authentication (now async)
+    const authenticated = await isAuthenticated();
+    if (!authenticated) {
         showError(t('noActiveSession'));
         return;
     }
 
+    const userInfo = await getUserInfo();
+    const accessToken = await getAccessToken();
+
+    if (!userInfo) {
+        showError('Unable to load user information');
+        return;
+    }
+
     try {
-        const response = await fetch('/get-account', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ sessionToken })
+        // For now, display user info from Keycloak
+        // Later you can fetch additional account data from your backend
+        displayAccount({
+            fullName: userInfo.name || userInfo.preferred_username || 'User',
+            email: userInfo.email || 'N/A',
+            accountNumber: 'XXXX-' + (userInfo.sub ? userInfo.sub.slice(-4) : '0000'),
+            accountType: 'checking',
+            username: userInfo.preferred_username
         });
 
-        const result = await response.json();
+        // Optional: Validate token with backend (non-blocking)
+        if (accessToken) {
+            try {
+                const response = await fetch('/api/userinfo', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
 
-        if (!result.success) {
-            showError(result.error || t('failedLoadAccount'));
-            return;
+                if (response.ok) {
+                    const backendUserInfo = await response.json();
+                    console.log('User info validated with backend:', backendUserInfo);
+                } else {
+                    console.warn('Backend validation failed:', response.status, response.statusText);
+                }
+            } catch (validationError) {
+                console.warn('Backend validation error (non-critical):', validationError);
+            }
         }
-
-        displayAccount(result.account);
 
     } catch (error) {
         console.error('Error loading account:', error);
@@ -70,35 +92,16 @@ function initLogoutButton() {
     if (!logoutBtn) return;
 
     const logoutHandler = async () => {
-        const sessionToken = sessionStorage.getItem('sessionToken');
-        
-        if (sessionToken) {
-            try {
-                await fetch('/logout', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ sessionToken })
-                });
-            } catch (error) {
-                console.error('Logout error:', error);
-            }
-        }
-
-        sessionStorage.removeItem('sessionToken');
-        
-        // Refresh nav state and redirect to landing
+        // Use OIDC logout with UserManager
         try {
-            const header = await import('../core/header.js');
-            if (typeof header.refreshNavState === 'function') {
-                header.refreshNavState();
-            }
-        } catch (e) {
-            console.warn('Could not refresh nav state:', e);
+            await signOut();
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Fallback: clear tokens and redirect manually
+            const { clearTokens } = await import('/core/oidc-config.js');
+            clearTokens();
+            window.location.href = '/';
         }
-        
-        window.location.href = '/';
     };
 
     logoutBtn.addEventListener('click', logoutHandler);

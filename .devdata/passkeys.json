@@ -1,0 +1,87 @@
+[
+  {
+    "id": "cred_1766869528890_sm8k1d7lp",
+    "user_id": "user_1766869519827_srqb4pu4h",
+    "credential_id": "jbSGNu5z54f+rLxgmdiDtQ==",
+    "public_key": "pQECAyYgASFYIAkKUzHdEB0TvHZlahoMSxPLctXVfhN2pJa6z/KGoDSaIlggaUqo8z59IXuwefGdM40JAKr/YMAjtR2L5trfgLxGHZI=",
+    "counter": 0,
+    "transports": [
+      "hybrid",
+      "internal"
+    ],
+    "backup_eligible": true,
+    "backup_state": true,
+    "device_type": "multiDevice",
+    "created_at": "2025-12-27T21:05:28.890Z",
+    "last_used_at": null,
+    "revoked_at": null
+  },
+  {
+    "id": "cred_1766869749572_vl7ji9dri",
+    "user_id": "user_1766869737730_l19xcig0x",
+    "credential_id": "DFbyv8v+c1JaoChEA5Rwkg==",
+    "public_key": "pQECAyYgASFYILgekGD3VQhX9Mp673JGqaQOzGzyp+8d4eKLM83puDhuIlggxj54YauCflAaK/0inbtl775Hh8zh7+fYKXdqiJMWuc0=",
+    "counter": 0,
+    "transports": [
+      "hybrid",
+      "internal"
+    ],
+    "backup_eligible": true,
+    "backup_state": true,
+    "device_type": "multiDevice",
+    "created_at": "2025-12-27T21:09:09.572Z",
+    "last_used_at": null,
+    "revoked_at": null
+  },
+  {
+    "id": "cred_1766870028220_ir2bqqldp",
+    "user_id": "user_1766870015952_fmz6qk7gy",
+    "credential_id": "u7OKTR+E2dN1OoXwheUKuw==",
+    "public_key": "pQECAyYgASFYIKYPgRTUo6wFSreeTiegHaqBbhIJHgfOsYV9mOtJoibZIlggh73tyC1aDca0+UcNPrdxR1/7iAUCFHWqhmeZat6zELQ=",
+    "counter": 0,
+    "transports": [
+      "hybrid",
+      "internal"
+    ],
+    "backup_eligible": true,
+    "backup_state": true,
+    "device_type": "multiDevice",
+    "created_at": "2025-12-27T21:13:48.220Z",
+    "last_used_at": null,
+    "revoked_at": null
+  },
+  {
+    "id": "cred_1766946695059_tg202rgf6",
+    "user_id": "user_1766946684740_7ldmvg30i",
+    "credential_id": "WQziK50MTctsaJo+XAwWIA==",
+    "public_key": "pQECAyYgASFYIB5JiOejj71Ol2J7nkcTJ+hDEopAd7XYAnZ3bNN1EI5zIlggZP/LDKjNHRpcfNvcjwZOQ53M/ogLClcyeu7VuhRZTpQ=",
+    "counter": 0,
+    "transports": [
+      "hybrid",
+      "internal"
+    ],
+    "backup_eligible": true,
+    "backup_state": true,
+    "device_type": "multiDevice",
+    "created_at": "2025-12-28T18:31:35.059Z",
+    "last_used_at": null,
+    "revoked_at": null
+  },
+  {
+    "id": "cred_1766946885116_70l04tclg",
+    "user_id": "user_1766946875101_3uaxm8kyc",
+    "credential_id": "J8RjJudj+IqG8/0CSqB46Q==",
+    "public_key": "pQECAyYgASFYIF3OtZphtctHddj6A6LA8T2gpLOmwf2aoI+LKe60cwAzIlgghTZ2WxCtCGV/x23X4MNJe2gCR2yxMZ7fIFC7AxpnHG8=",
+    "counter": 0,
+    "transports": [
+      "hybrid",
+      "internal"
+    ],
+    "backup_eligible": true,
+    "backup_state": true,
+    "device_type": "multiDevice",
+    "created_at": "2025-12-28T18:34:45.116Z",
+    "last_used_at": null,
+    "revoked_at": null
+  }
+]

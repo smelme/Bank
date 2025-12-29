@@ -1,7 +1,16 @@
+// Load environment variables
+import dotenv from 'dotenv';
+dotenv.config();
+
+import crypto from 'crypto';
+// Make crypto available globally for id-verifier library
+globalThis.crypto = crypto.webcrypto;
+
 import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import * as db from './database.js';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 
 import {
     createCredentialsRequest,
@@ -39,6 +48,714 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(bodyParser.json());
 
+// === Keycloak JWT Validation Middleware ===
+
+const KEYCLOAK_REALM_URL = 'https://keycloak-production-5bd5.up.railway.app/realms/Tamange%20Bank';
+const JWKS = createRemoteJWKSet(
+  new URL(`${KEYCLOAK_REALM_URL}/protocol/openid-connect/certs`)
+);
+
+/**
+ * Middleware to validate Keycloak JWT tokens
+ * Add this to routes that require authentication
+ */
+async function validateKeycloakToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid authorization header' });
+  }
+  
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  try {
+    const { payload } = await jwtVerify(token, JWKS, {
+      issuer: KEYCLOAK_REALM_URL,
+      audience: 'tamange-web' // Must match your client ID
+    });
+    
+    // Attach user info to request
+    req.user = {
+      sub: payload.sub,
+      preferred_username: payload.preferred_username,
+      email: payload.email,
+      email_verified: payload.email_verified,
+      name: payload.name,
+      given_name: payload.given_name,
+      family_name: payload.family_name,
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Token validation failed:', error.message);
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
+// Public endpoint to get user info (requires valid token)
+app.get('/api/userinfo', validateKeycloakToken, (req, res) => {
+  res.json(req.user);
+});
+
+// === End Keycloak JWT Validation ===
+
+// === Orchestrator API Endpoints ===
+
+import * as keycloakAdmin from './keycloak-admin.js';
+import { 
+  generateRegistrationOptions, 
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse 
+} from '@simplewebauthn/server';
+import { signAssertion, exchangeWithKeycloak } from './token-exchange.js';
+
+/**
+ * POST /v1/users/register
+ * Register a new user after Digital ID verification
+ * 
+ * Flow:
+ * 1. Verify digital ID (your existing flow)
+ * 2. Create user in Orchestrator DB (master)
+ * 3. Push user to Keycloak via Admin API
+ * 4. Return user info for passkey enrollment
+ */
+app.post('/v1/users/register', async (req, res) => {
+  try {
+    const { 
+      username, 
+      email, 
+      phone,
+      givenName, 
+      familyName, 
+      birthDate,
+      documentNumber, 
+      documentType,
+      issuingAuthority,
+      faceDescriptor 
+    } = req.body;
+    
+    // Validate required fields
+    if (!username || !email || !givenName || !familyName || !documentNumber) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Missing required fields' 
+      });
+    }
+    
+    // Check if user already exists in Orchestrator DB
+    const existingUser = await db.getUserByUsername(username);
+    if (existingUser) {
+      return res.status(409).json({ 
+        success: false, 
+        error: 'Username already exists' 
+      });
+    }
+    
+    // Create user in Keycloak first
+    let keycloakUserId;
+    try {
+      keycloakUserId = await keycloakAdmin.createKeycloakUser({
+        username,
+        email,
+        firstName: givenName,
+        lastName: familyName,
+        documentNumber,
+        attributes: {
+          phone: phone ? [phone] : [],
+          document_type: documentType ? [documentType] : [],
+          birth_date: birthDate ? [birthDate] : []
+        }
+      });
+      
+      console.log(`Created Keycloak user: ${keycloakUserId}`);
+    } catch (keycloakError) {
+      console.error('Failed to create Keycloak user:', keycloakError);
+      // In dev return the Keycloak error message to help debugging
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to create user in authentication system',
+        details: keycloakError.message || String(keycloakError)
+      });
+    }
+    
+    // Create user in Orchestrator DB (master)
+    let user;
+    try {
+      user = await db.createUser({
+        keycloakUserId,
+        username,
+        email,
+        phone,
+        givenName,
+        familyName,
+        birthDate,
+        documentNumber,
+        documentType,
+        issuingAuthority,
+        faceDescriptor
+      });
+      
+      console.log(`Created user in Orchestrator DB: ${user.id}`);
+    } catch (dbError) {
+      // Rollback: Delete Keycloak user if DB creation fails
+      console.error('Failed to create user in Orchestrator DB:', dbError.message);
+      try {
+        await keycloakAdmin.deleteKeycloakUser(keycloakUserId);
+        console.log('Rolled back Keycloak user creation');
+      } catch (rollbackError) {
+        console.error('Failed to rollback Keycloak user:', rollbackError.message);
+      }
+      
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to create user in database' 
+      });
+    }
+    
+    // Log registration event
+    await db.logAuthEvent({
+      userId: user.id,
+      username: user.username,
+      eventType: 'USER_REGISTERED',
+      method: 'DIGITAL_ID',
+      result: 'SUCCESS',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+    
+    return res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        givenName: user.given_name,
+        familyName: user.family_name
+      }
+    });
+    
+  } catch (error) {
+    console.error('Registration error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error during registration' 
+    });
+  }
+});
+
+/**
+ * POST /v1/passkeys/register/options
+ * Generate WebAuthn registration options for passkey enrollment
+ */
+app.post('/v1/passkeys/register/options', async (req, res) => {
+  console.log('=== PASSKEY REGISTRATION OPTIONS REQUEST ===');
+  console.log('Request body:', JSON.stringify(req.body));
+  
+  try {
+    const { userId, username } = req.body;
+    
+    console.log(`Generating WebAuthn registration options for user: ${username} (${userId})`);
+    
+    if (!userId || !username) {
+      return res.status(400).json({ error: 'userId and username required' });
+    }
+    
+    // Get user from DB
+    console.log('Fetching user from DB...');
+    const user = await db.getUserById(userId);
+    if (!user) {
+      console.log(`User not found: ${userId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log(`Found user: ${user.username}`);
+    console.log('User details:', JSON.stringify({ id: user.id, username: user.username, given_name: user.given_name, family_name: user.family_name }));
+    
+    // Get existing credentials for this user
+    console.log('Fetching existing credentials...');
+    const existingCredentials = await db.getUserPasskeyCredentials(userId);
+    console.log(`Found ${existingCredentials.length} existing credentials`);
+    
+    // Generate registration options
+    console.log('Calling generateRegistrationOptions...');
+    const options = await generateRegistrationOptions({
+      rpName: process.env.WEBAUTHN_RP_NAME || 'Tamange Bank',
+      rpID: process.env.WEBAUTHN_RP_ID || 'localhost',
+      userID: new Uint8Array(Buffer.from(userId, 'utf8')),
+      userName: username,
+      userDisplayName: `${user.given_name} ${user.family_name}`,
+      attestationType: 'none',
+      excludeCredentials: existingCredentials.map(cred => ({
+        id: cred.credential_id, // Already in correct format from DB
+        type: 'public-key',
+        transports: cred.transports || []
+      })),
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+        authenticatorAttachment: 'platform' // Prefer platform authenticators (Touch ID, Windows Hello, etc.)
+      },
+    });
+    
+    // Store challenge
+    await db.storeChallenge(userId, options.challenge, 300); // 5 min expiry
+    
+    console.log(`✓ Generated WebAuthn registration options for ${username}`);
+    return res.json(options);
+    
+  } catch (error) {
+    console.error('Error generating registration options:', error);
+    console.error('Error stack:', error.stack);
+    return res.status(500).json({ 
+      error: 'Failed to generate registration options',
+      details: error.message 
+    });
+  }
+});
+
+/**
+ * POST /v1/passkeys/register/verify
+ * Verify and store passkey credential after WebAuthn ceremony
+ */
+app.post('/v1/passkeys/register/verify', async (req, res) => {
+  try {
+    const { userId, credential } = req.body;
+    
+    console.log(`Verifying passkey registration for user: ${userId}`);
+    
+    if (!userId || !credential) {
+      return res.status(400).json({ error: 'userId and credential required' });
+    }
+    
+    // Get user
+    const user = await db.getUserById(userId);
+    if (!user) {
+      console.log(`User not found: ${userId}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    console.log(`Verifying credential for user: ${user.username}`);
+    console.log('Credential received (preview):', {
+      id: credential.id,
+      rawId_len: credential.rawId ? credential.rawId.length : 0,
+      clientDataJSON_len: credential.response && credential.response.clientDataJSON ? credential.response.clientDataJSON.length : 0,
+      attestationObject_len: credential.response && credential.response.attestationObject ? credential.response.attestationObject.length : 0,
+    });
+    
+    // Get stored challenge by decoding clientDataJSON.challenge
+    let clientChallenge;
+    try {
+      const clientDataJSON_b64 = credential.response.clientDataJSON;
+      // clientDataJSON may be base64url; normalize to base64 then decode
+      const normalizeBase64Url = (s) => {
+        if (!s) return s;
+        let t = s.replace(/-/g, '+').replace(/_/g, '/');
+        while (t.length % 4) t += '=';
+        return t;
+      };
+      const clientDataJSON_base64 = normalizeBase64Url(clientDataJSON_b64);
+      const clientDataJSON_str = Buffer.from(clientDataJSON_base64, 'base64').toString('utf8');
+      const clientData = JSON.parse(clientDataJSON_str);
+      clientChallenge = clientData.challenge; // base64url challenge
+    } catch (err) {
+      console.error('Failed to parse clientDataJSON to extract challenge:', err);
+      return res.status(400).json({ error: 'Invalid clientDataJSON' });
+    }
+
+    const challengeRecord = await db.getChallenge(clientChallenge);
+    if (!challengeRecord) {
+      return res.status(400).json({ error: 'Invalid or expired challenge' });
+    }
+    
+    // Verify registration response
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response: credential,
+        expectedChallenge: challengeRecord.challenge,
+        expectedOrigin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:3001',
+        expectedRPID: process.env.WEBAUTHN_RP_ID || 'localhost',
+      });
+      // Debug: shallow-print verification result to help diagnose missing registrationInfo
+      try {
+        console.log('verifyRegistrationResponse result (summary):', {
+          verified: verification.verified,
+          registrationInfo_present: !!verification.registrationInfo,
+          registrationInfo_keys: verification.registrationInfo ? Object.keys(verification.registrationInfo) : null
+        });
+      } catch (e) {
+        console.log('Could not summarize verification result:', e);
+      }
+    } catch (err) {
+      console.error('verifyRegistrationResponse threw error:', err);
+      return res.status(400).json({ verified: false, error: 'Verification error', details: err.message });
+    }
+
+    if (!verification.verified || !verification.registrationInfo) {
+      console.error('Verification result:', verification);
+      return res.status(400).json({ 
+        verified: false, 
+        error: 'Verification failed',
+        details: JSON.stringify(verification)
+      });
+    }
+    
+    // Store credential
+    // Support multiple shapes returned by verifyRegistrationResponse:
+    // - registrationInfo.credentialID & registrationInfo.credentialPublicKey (flat)
+    // - registrationInfo.credential = { id, publicKey, counter }
+    const regInfo = verification.registrationInfo || {};
+
+    // Helper to normalize base64url string -> Buffer
+    const normalizeBase64UrlToBuffer = (s) => {
+      if (!s) return null;
+      if (Buffer.isBuffer(s)) return s;
+      if (s instanceof Uint8Array) return Buffer.from(s);
+      if (typeof s === 'string') {
+        let t = s.replace(/-/g, '+').replace(/_/g, '/');
+        while (t.length % 4) t += '=';
+        return Buffer.from(t, 'base64');
+      }
+      // If it's an ArrayBuffer
+      if (s instanceof ArrayBuffer) return Buffer.from(new Uint8Array(s));
+      return null;
+    };
+
+    // Try top-level fields first, then nested credential
+    const rawCredentialId = regInfo.credentialID ?? regInfo.credential?.id;
+    const rawPublicKey = regInfo.credentialPublicKey ?? regInfo.credential?.publicKey;
+    const newCounter = regInfo.counter ?? regInfo.credential?.counter ?? 0;
+
+    const credentialIdBuffer = normalizeBase64UrlToBuffer(rawCredentialId);
+    const credentialPublicKeyBuffer = normalizeBase64UrlToBuffer(rawPublicKey);
+
+    if (!credentialIdBuffer || !credentialPublicKeyBuffer) {
+      console.error('Missing registrationInfo fields:', { credentialID: rawCredentialId, credentialPublicKey: rawPublicKey, registrationInfo: regInfo });
+      return res.status(500).json({ error: 'Failed to verify registration', details: 'Missing credential public key or id in registrationInfo' });
+    }
+
+    try {
+      const credentialIdB64 = credentialIdBuffer.toString('base64');
+      const publicKeyB64 = credentialPublicKeyBuffer.toString('base64');
+      console.log('Storing passkey credential (preview):', {
+        credential_id_preview: credentialIdB64.slice(0, 12) + '...',
+        credential_id_len: credentialIdBuffer.length,
+        public_key_len: credentialPublicKeyBuffer.length,
+        counter: newCounter
+      });
+
+      await db.storePasskeyCredential({
+        userId,
+        credentialId: credentialIdB64,
+        publicKey: publicKeyB64,
+        counter: newCounter,
+        transports: credential.response.transports || (regInfo.credential && regInfo.credential.transports) || [],
+        backupEligible: regInfo.credentialBackedUp ?? regInfo.credential?.credentialBackedUp ?? false,
+        backupState: regInfo.credentialBackedUp ?? regInfo.credential?.credentialBackedUp ?? false,
+        deviceType: regInfo.credentialDeviceType ?? regInfo.credential?.credentialDeviceType ?? null
+      });
+    } catch (storeErr) {
+      console.error('Failed to store passkey credential:', storeErr);
+      return res.status(500).json({ error: 'Failed to store passkey credential', details: storeErr.message });
+    }
+    
+    // Delete used challenge
+    await db.deleteChallenge(challengeRecord.challenge);
+    
+    // Log enrollment event
+    await db.logAuthEvent({
+      userId,
+      username: user.username,
+      eventType: 'PASSKEY_ENROLLED',
+      method: 'WEBAUTHN',
+      result: 'SUCCESS',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+    
+    console.log(`✓ Passkey registration verified and stored for ${user.username}`);
+    
+    return res.json({ 
+      verified: true,
+      message: 'Passkey enrolled successfully' 
+    });
+    
+  } catch (error) {
+    console.error('Error verifying registration:', error);
+    console.error(error.stack);
+    return res.status(500).json({ error: 'Failed to verify registration', details: error.message });
+  }
+});
+
+/**
+ * POST /v1/passkeys/auth/options
+ * Generate WebAuthn authentication options for passkey sign-in
+ */
+app.post('/v1/passkeys/auth/options', async (req, res) => {
+  try {
+    const { username } = req.body;
+    
+    if (!username) {
+      return res.status(400).json({ error: 'username required' });
+    }
+    
+    // Get user
+    const user = await db.getUserByUsername(username);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    console.log(`Passkey auth requested for username=${username}, userId=${user.id}`);
+    try {
+      // Try to log in-memory passkeys size for debugging
+      const keys = Array.from((await Promise.resolve()).constructor === Function ? [] : []);
+    } catch (e) {
+      // noop
+    }
+    
+    // Get user's credentials
+    const credentials = await db.getUserPasskeyCredentials(user.id);
+    console.log(`Retrieved ${credentials.length} credentials for user ${user.id}`);
+    console.log('Credentials preview:', credentials.map(c => ({ credential_id: c.credential_id, user_id: c.user_id })));
+    
+    if (credentials.length === 0) {
+      return res.status(400).json({ error: 'No passkeys enrolled for this user' });
+    }
+    
+    // Helper: convert standard base64 -> base64url (no padding)
+    const base64ToBase64Url = s => s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    // Generate authentication options
+    const options = await generateAuthenticationOptions({
+      rpID: process.env.WEBAUTHN_RP_ID || 'localhost',
+      allowCredentials: credentials.map(cred => ({
+        // simplewebauthn expects base64url-encoded id strings here
+        id: base64ToBase64Url(cred.credential_id),
+        type: 'public-key',
+        transports: cred.transports || []
+      })),
+      userVerification: 'preferred',
+    });
+    
+    // Store challenge
+    await db.storeChallenge(user.id, options.challenge, 300);
+    
+    return res.json(options);
+    
+  } catch (error) {
+    console.error('Error generating authentication options:', error);
+    return res.status(500).json({ error: 'Failed to generate authentication options' });
+  }
+});
+
+/**
+ * POST /v1/passkeys/auth/verify
+ * Verify passkey authentication
+ */
+app.post('/v1/passkeys/auth/verify', async (req, res) => {
+  try {
+    const { username, credential } = req.body;
+    
+    if (!username || !credential) {
+      return res.status(400).json({ error: 'username and credential required' });
+    }
+    
+    // Get user
+    const user = await db.getUserByUsername(username);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Normalize credential id (client may send base64url). DB stores standard base64.
+    const base64UrlToBase64 = s => {
+      if (!s) return s;
+      let t = s.replace(/-/g, '+').replace(/_/g, '/');
+      while (t.length % 4) t += '=';
+      return t;
+    };
+
+    // Get credential from DB
+    const credentialId = base64UrlToBase64(credential.id);
+    const dbCredential = await db.getPasskeyCredential(credentialId);
+    
+    if (!dbCredential) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+    
+    // Get stored challenge by decoding clientDataJSON.challenge
+    let clientChallenge;
+    try {
+      const clientDataJSON_b64url = credential.response.clientDataJSON;
+      const normalizeToBase64 = s => {
+        if (!s) return s;
+        let t = s.replace(/-/g, '+').replace(/_/g, '/');
+        while (t.length % 4) t += '=';
+        return t;
+      };
+      const clientDataJSON_base64 = normalizeToBase64(clientDataJSON_b64url);
+      const clientDataJSON_str = Buffer.from(clientDataJSON_base64, 'base64').toString('utf8');
+      const clientData = JSON.parse(clientDataJSON_str);
+      clientChallenge = clientData.challenge; // base64url
+    } catch (err) {
+      console.error('Failed to parse clientDataJSON to extract challenge (auth):', err);
+      return res.status(400).json({ error: 'Invalid clientDataJSON' });
+    }
+
+    const challengeRecord = await db.getChallenge(clientChallenge);
+    if (!challengeRecord) {
+      return res.status(400).json({ error: 'Invalid or expired challenge' });
+    }
+    
+    // Verify authentication response
+    const credentialFromDb = {
+      id: Buffer.from(dbCredential.credential_id, 'base64'),
+      publicKey: Buffer.from(dbCredential.public_key, 'base64'),
+      counter: dbCredential.counter || 0
+    };
+
+    console.log('Authenticators/DB credential preview for verification:', {
+      dbCredential_preview: { credential_id: dbCredential.credential_id ? dbCredential.credential_id.slice(0,12)+'...' : null, user_id: dbCredential.user_id, counter: dbCredential.counter },
+      authenticator_preview: { id_len: credentialFromDb.id.length, publicKey_len: credentialFromDb.publicKey.length, counter: credentialFromDb.counter }
+    });
+
+    let verification;
+    try {
+      verification = await verifyAuthenticationResponse({
+        response: credential,
+        expectedChallenge: challengeRecord.challenge,
+        expectedOrigin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:3001',
+        expectedRPID: process.env.WEBAUTHN_RP_ID || 'localhost',
+        credential: credentialFromDb
+      });
+    } catch (verErr) {
+      console.error('verifyAuthenticationResponse threw error:', verErr);
+      console.error(verErr.stack);
+      return res.status(400).json({ verified: false, error: 'Verification error', details: String(verErr.message || verErr) });
+    }
+    
+    if (!verification.verified) {
+      // Log failed attempt
+      await db.logAuthEvent({
+        userId: user.id,
+        username: user.username,
+        eventType: 'PASSKEY_AUTH',
+        method: 'WEBAUTHN',
+        result: 'FAILURE',
+        reason: 'Verification failed',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      
+      return res.status(400).json({ 
+        verified: false, 
+        error: 'Authentication failed' 
+      });
+    }
+    
+    // Update counter
+    const { newCounter } = verification.authenticationInfo;
+    await db.updatePasskeyCounter(dbCredential.credential_id, newCounter);
+    
+    // Delete used challenge
+    await db.deleteChallenge(challengeRecord.challenge);
+    
+    // Log successful auth
+    await db.logAuthEvent({
+      userId: user.id,
+      username: user.username,
+      eventType: 'PASSKEY_AUTH',
+      method: 'WEBAUTHN',
+      result: 'SUCCESS',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+    
+    // If token exchange is enabled, sign an assertion and exchange with Keycloak
+    if (process.env.ENABLE_TOKEN_EXCHANGE === 'true') {
+      try {
+        const assertion = await signAssertion(user);
+        console.log('Signed assertion for token exchange (preview):', { sub: user.id, username: user.username });
+        const tokenResponse = await exchangeWithKeycloak(assertion);
+        console.log('Keycloak token exchange response keys:', Object.keys(tokenResponse || {}));
+        return res.json({ 
+          verified: true,
+          userId: user.id,
+          username: user.username,
+          tokenExchange: tokenResponse
+        });
+      } catch (txErr) {
+        console.error('Token exchange failed:', txErr);
+        // Return verification success but include token exchange failure details so client can decide next step
+        return res.status(500).json({ 
+          verified: true,
+          userId: user.id,
+          username: user.username,
+          tokenExchange: { success: false, error: String(txErr.message || txErr) }
+        });
+      }
+    }
+
+    return res.json({ 
+      verified: true,
+      userId: user.id,
+      username: user.username
+    });
+    
+  } catch (error) {
+    console.error('Error verifying authentication:', error);
+    return res.status(500).json({ error: 'Failed to verify authentication' });
+  }
+});
+
+// DEBUG: Inspect stored passkeys for a username (in-memory / DB)
+app.get('/debug/passkeys/:username', async (req, res) => {
+  try {
+    const username = req.params.username;
+    if (!username) return res.status(400).json({ error: 'username required' });
+    const user = await db.getUserByUsername(username);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    const creds = await db.getUserPasskeyCredentials(user.id);
+    return res.json({ userId: user.id, username: user.username, count: creds.length, credentials: creds.map(c => ({ credential_id: c.credential_id, user_id: c.user_id, created_at: c.created_at })) });
+  } catch (err) {
+    console.error('Debug passkeys error:', err);
+    return res.status(500).json({ error: 'debug failed' });
+  }
+});
+
+// DEBUG: List all users (in-memory or DB sample)
+app.get('/debug/users', async (req, res) => {
+  try {
+    // If DB available, show a small sample of users
+    if (db.initDatabase()) {
+      return res.status(200).json({ message: 'DB available, use DB viewer' });
+    }
+
+    // In-memory users
+    // Note: we can't directly access inMemoryUsers here; rely on db helper to iterate
+    const users = [];
+    // db doesn't export a list function, but getUserByUsername can be used if we had names.
+    // As a fallback, try to read the internal map from the module cache (best-effort, dev-only)
+    try {
+      const mod = await import('./database.js');
+      if (mod && mod.__debugListUsers) {
+        const list = await mod.__debugListUsers();
+        return res.json({ count: list.length, users: list });
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return res.json({ message: 'No DB and no debug helper available' });
+  } catch (err) {
+    console.error('Debug users error:', err);
+    return res.status(500).json({ error: 'debug failed' });
+  }
+});
+
+// === End Orchestrator API Endpoints ===
+
+
+
 // --- SPA routing (History API) ---
 // Redirect legacy *.html routes to clean paths BEFORE static middleware.
 app.get(['/index.html', '/signin.html', '/register.html', '/home.html'], (req, res) => {
@@ -52,6 +769,50 @@ app.get(['/index.html', '/signin.html', '/register.html', '/home.html'], (req, r
 });
 
 app.use(express.static('public'));
+
+// Dev-only JWKS endpoint to help Keycloak fetch the Orchestrator public key during local testing
+app.get('/.well-known/jwks.json', (req, res) => {
+  try {
+    // Only expose in development to avoid accidental public key hosting in production
+    if ((process.env.NODE_ENV || 'development') !== 'development') {
+      return res.status(404).json({ error: 'not found' });
+    }
+
+    const jwksPath = path.join(__dirname, 'secrets', 'orchestrator-jwks.json');
+    if (!fs.existsSync(jwksPath)) {
+      return res.status(404).json({ error: 'JWKS not generated. Run scripts/pem-to-jwks.mjs' });
+    }
+
+    res.setHeader('Content-Type', 'application/json');
+    return res.sendFile(jwksPath);
+  } catch (err) {
+    console.error('Error serving JWKS:', err);
+    return res.status(500).json({ error: 'failed to serve jwks' });
+  }
+});
+
+// Dev-only OpenID Connect discovery document to help Keycloak discover the JWKS
+app.get('/.well-known/openid-configuration', (req, res) => {
+  try {
+    if ((process.env.NODE_ENV || 'development') !== 'development') {
+      return res.status(404).json({ error: 'not found' });
+    }
+
+    const issuer = process.env.ORCHESTRATOR_ISS || `http://localhost:${port}`;
+    const jwksUri = issuer.replace(/\/$/, '') + '/.well-known/jwks.json';
+
+    const config = {
+      issuer,
+      jwks_uri: jwksUri
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    return res.json(config);
+  } catch (err) {
+    console.error('Error serving openid-configuration:', err);
+    return res.status(500).json({ error: 'failed to serve openid configuration' });
+  }
+});
 
 // Middleware to handle ES module imports without .js extension
 app.use('/node_modules', (req, res, next) => {
@@ -84,6 +845,11 @@ app.get('/favicon.ico', (req, res) => res.status(204).end());
 function serveSpaShell(req, res) {
     return res.sendFile(path.join(__dirname, 'public', 'app.html'));
 }
+
+// Explicitly handle callback route (with or without query params)
+app.get('/callback', (req, res) => {
+    return serveSpaShell(req, res);
+});
 
 app.get(['/', '/signin', '/register', '/home'], (req, res) => {
     // If a proxy/CDN rewrites routes, this ensures we still serve HTML.

@@ -1,5 +1,7 @@
 {
   "imports": {
+    "oidc-client-ts": "/node_modules/oidc-client-ts/dist/esm/oidc-client-ts.js",
+    "jwt-decode": "/node_modules/jwt-decode/build/esm/index.js",
     "trusted-issuer-registry": "/node_modules/trusted-issuer-registry/build/trusted-issuer-registry.js",
     "asn1js": "/node_modules/asn1js/build/index.es.js",
     "pkijs": "/node_modules/pkijs/build/index.es.js",

@@ -1,0 +1,62 @@
+[
+  {
+    "challenge": "Esn2EHXpOg6tYpQgax2YfEYOSg90HhAN8nuBRDPv9u0",
+    "user_id": "user_1766868085237_5rbw6ekbz",
+    "created_at": "2025-12-27T20:41:25.247Z",
+    "expires_at": "2025-12-27T20:46:25.247Z"
+  },
+  {
+    "challenge": "xDDIDwXWGVgSBdQt8ph2lRSwOesGRL8ZH9ZGd_8xR8w",
+    "user_id": "user_1766868268792_8y0iax2pj",
+    "created_at": "2025-12-27T20:44:28.821Z",
+    "expires_at": "2025-12-27T20:49:28.821Z"
+  },
+  {
+    "challenge": "svZGAWm4wrayrGzcF1lK2mCKYJrJPMEFbiTAB52r5Vw",
+    "user_id": "user_1766868393797_6vn2kzxvv",
+    "created_at": "2025-12-27T20:46:33.808Z",
+    "expires_at": "2025-12-27T20:51:33.808Z"
+  },
+  {
+    "challenge": "FZH_9lGN5QdNfHPX5jmIsj9ikNLAo8A3OgRNgRLO0cE",
+    "user_id": "user_1766868779384_1i7lhkz5i",
+    "created_at": "2025-12-27T20:52:59.395Z",
+    "expires_at": "2025-12-27T20:57:59.395Z"
+  },
+  {
+    "challenge": "KV4aZ2wVb_q38UXjyNF5k7O_DPCG7PVaZB0nfCm0xuA",
+    "user_id": "user_1766868938192_ma0j477j1",
+    "created_at": "2025-12-27T20:55:38.211Z",
+    "expires_at": "2025-12-27T21:00:38.211Z"
+  },
+  {
+    "challenge": "jvUnhw2jhnUYXTLInWeQX-PWRin0WDY0ML81l-nca-o",
+    "user_id": "user_1766869303146_hq6dkikge",
+    "created_at": "2025-12-27T21:01:43.173Z",
+    "expires_at": "2025-12-27T21:06:43.173Z"
+  },
+  {
+    "challenge": "yc5cOE320lFoGf0DpR6DcCf21UuJ5CDBAVVkMn3Zsbg",
+    "user_id": "user_1766869737730_l19xcig0x",
+    "created_at": "2025-12-27T21:09:27.733Z",
+    "expires_at": "2025-12-27T21:14:27.733Z"
+  },
+  {
+    "challenge": "V3UepdCabNyPQjXd5QIdVEEUMrVkJBWNNmkcoulAQp4",
+    "user_id": "user_1766870015952_fmz6qk7gy",
+    "created_at": "2025-12-27T21:14:01.331Z",
+    "expires_at": "2025-12-27T21:19:01.331Z"
+  },
+  {
+    "challenge": "5r7nSS3VfGNXRda2Lqytsf5A7K1Eg6BnR9UgJWIaKkE",
+    "user_id": "user_1766870015952_fmz6qk7gy",
+    "created_at": "2025-12-28T18:26:54.790Z",
+    "expires_at": "2025-12-28T18:31:54.789Z"
+  },
+  {
+    "challenge": "qN0JYSIEsEuDuvwTKmGusA79QIKgRq8iOzZk1e-q7Bs",
+    "user_id": "user_1766946684740_7ldmvg30i",
+    "created_at": "2025-12-28T18:31:49.380Z",
+    "expires_at": "2025-12-28T18:36:49.380Z"
+  }
+]

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Silent Token Renewal</title>
+</head>
+<body>
+    <script src="/node_modules/oidc-client-ts/dist/browser/oidc-client-ts.min.js"></script>
+    <script>
+        // This page runs in an iframe to silently refresh tokens
+        new oidc.UserManager().signinSilentCallback().catch(function (error) {
+            console.error('Silent renew error:', error);
+        });
+    </script>
+</body>
+</html>
