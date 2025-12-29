@@ -781,37 +781,61 @@ app.use(express.static('public'));
 // Dev-only JWKS endpoint to help Keycloak fetch the Orchestrator public key during local testing
 app.get('/.well-known/jwks.json', (req, res) => {
   try {
-    // Only expose in development to avoid accidental public key hosting in production
-    if ((process.env.NODE_ENV || 'development') !== 'development') {
-      return res.status(404).json({ error: 'not found' });
-    }
-
     const jwksPath = path.join(__dirname, 'secrets', 'orchestrator-jwks.json');
-    if (!fs.existsSync(jwksPath)) {
-      return res.status(404).json({ error: 'JWKS not generated. Run scripts/pem-to-jwks.mjs' });
+
+    // Prefer a file on disk (created by pem-to-jwks), else accept JWKS provided via an env var.
+    if (fs.existsSync(jwksPath)) {
+      res.setHeader('Content-Type', 'application/json');
+      return res.sendFile(jwksPath);
     }
 
-    res.setHeader('Content-Type', 'application/json');
-    return res.sendFile(jwksPath);
+    if (process.env.ORCHESTRATOR_JWKS) {
+      res.setHeader('Content-Type', 'application/json');
+      try {
+        const jwks = JSON.parse(process.env.ORCHESTRATOR_JWKS);
+        return res.json(jwks);
+      } catch (parseErr) {
+        console.error('Failed to parse ORCHESTRATOR_JWKS env var as JSON:', parseErr);
+        return res.status(500).json({ error: 'Invalid ORCHESTRATOR_JWKS value' });
+      }
+    }
+
+    return res.status(404).json({ error: 'JWKS not generated or configured. Run scripts/pem-to-jwks.mjs or set ORCHESTRATOR_JWKS' });
   } catch (err) {
     console.error('Error serving JWKS:', err);
     return res.status(500).json({ error: 'failed to serve jwks' });
   }
 });
 
+
 // Dev-only OpenID Connect discovery document to help Keycloak discover the JWKS
 app.get('/.well-known/openid-configuration', (req, res) => {
   try {
-    if ((process.env.NODE_ENV || 'development') !== 'development') {
+    // Determine issuer: prefer explicit env var ORCHESTRATOR_ISS, else derive from request host
+    const issuer = (process.env.ORCHESTRATOR_ISS && process.env.ORCHESTRATOR_ISS.trim()) || (() => {
+      const protocol = req.get('X-Forwarded-Proto') || req.protocol;
+      return `${protocol}://${req.get('host')}`;
+    })();
+
+    // Only serve discovery if JWKS is available (via file or env) or an explicit issuer is configured
+    const jwksPath = path.join(__dirname, 'secrets', 'orchestrator-jwks.json');
+    if (!fs.existsSync(jwksPath) && !process.env.ORCHESTRATOR_JWKS && !process.env.ORCHESTRATOR_ISS) {
       return res.status(404).json({ error: 'not found' });
     }
 
-    const issuer = process.env.ORCHESTRATOR_ISS || `http://localhost:${port}`;
     const jwksUri = issuer.replace(/\/$/, '') + '/.well-known/jwks.json';
 
     const config = {
       issuer,
-      jwks_uri: jwksUri
+      jwks_uri: jwksUri,
+      // Provide basic OIDC fields to satisfy Keycloak discovery expectations
+      authorization_endpoint: issuer + '/authorize',
+      token_endpoint: issuer + '/token',
+      userinfo_endpoint: issuer + '/userinfo',
+      end_session_endpoint: issuer + '/logout',
+      response_types_supported: [ 'code', 'id_token', 'token' ],
+      subject_types_supported: [ 'public' ],
+      id_token_signing_alg_values_supported: [ 'RS256' ]
     };
 
     res.setHeader('Content-Type', 'application/json');
