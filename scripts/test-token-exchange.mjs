@@ -1,5 +1,11 @@
 import crypto from 'crypto';
-globalThis.crypto = crypto.webcrypto;
+try {
+  if (typeof globalThis.crypto === 'undefined') {
+    globalThis.crypto = crypto.webcrypto;
+  }
+} catch (err) {
+  // ignore
+}
 import { signAssertion, exchangeWithKeycloak } from '../token-exchange.js';
 
 async function run() {

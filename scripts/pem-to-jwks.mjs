@@ -1,7 +1,13 @@
 import fs from 'fs';
 import crypto from 'crypto';
-// Make webcrypto available for jose
-globalThis.crypto = crypto.webcrypto;
+// Make webcrypto available for jose when safe to do so.
+try {
+  if (typeof globalThis.crypto === 'undefined') {
+    globalThis.crypto = crypto.webcrypto;
+  }
+} catch (err) {
+  // ignore: platform provides crypto as read-only getter
+}
 import { exportJWK, importSPKI } from 'jose';
 
 try {

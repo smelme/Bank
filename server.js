@@ -3,8 +3,16 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 import crypto from 'crypto';
-// Make crypto available globally for id-verifier library
-globalThis.crypto = crypto.webcrypto;
+// Make crypto available globally for id-verifier library when it's safe to do so.
+// On Node >=19 globalThis.crypto is provided as a getter-only property and
+// attempting to assign to it throws a TypeError. Guard the assignment.
+try {
+  if (typeof globalThis.crypto === 'undefined') {
+    globalThis.crypto = crypto.webcrypto;
+  }
+} catch (err) {
+  // Platform already provides a read-only crypto — ignore the assignment error.
+}
 
 import express from 'express';
 import bodyParser from 'body-parser';
