@@ -6,7 +6,8 @@ const tokenUrl = process.env.KEYCLOAK_TOKEN_URL || `${process.env.KEYCLOAK_URL.r
 const params = new URLSearchParams();
 params.append('grant_type', 'urn:ietf:params:oauth:grant-type:token-exchange');
 params.append('subject_token', assertion);
-params.append('subject_token_type', 'urn:ietf:params:oauth:token-type:jwt');
+// Use SUBJECT_TOKEN_TYPE env var if set; default to access_token which Keycloak may expect.
+params.append('subject_token_type', process.env.SUBJECT_TOKEN_TYPE || 'urn:ietf:params:oauth:token-type:access_token');
 
 const auth = Buffer.from((process.env.KEYCLOAK_CLIENT_ID || '') + ':' + (process.env.KEYCLOAK_CLIENT_SECRET || '')).toString('base64');
 

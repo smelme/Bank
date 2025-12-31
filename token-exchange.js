@@ -1,4 +1,6 @@
 import fs from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
 // Simple token-exchange helper for Orchestrator -> Keycloak
@@ -19,22 +21,45 @@ async function loadPrivateKey() {
 async function signAssertion(user) {
   const key = await loadPrivateKey();
   const now = Math.floor(Date.now() / 1000);
-  const iss = process.env.ORCHESTRATOR_ISS || 'orchestrator';
+  const iss = process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app';
   const aud = process.env.KEYCLOAK_CLIENT_ID || 'tamange-web';
   const lifetime = parseInt(process.env.ORCHESTRATOR_ASSERTION_LIFETIME || '30', 10);
+  const azp = process.env.ORCHESTRATOR_CLIENT_ID || 'orchestrator-service';
+  const scope = process.env.ORCHESTRATOR_SCOPE || 'profile email';
 
-  // Minimal assertion payload. Admins may want to include more claims.
+  // generate jti
+  const jti = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(16).toString('hex');
+
+  // build a more access-token-like assertion so Keycloak can validate it when configured to trust
   const payload = {
     sub: user.id,
     preferred_username: user.username,
-    iss,
-    aud,
+    azp,
+    scope,
   };
 
+  // attempt to read a kid from local JWKS if present to include in header
+  let kid;
+  try {
+    const jwksPath = path.join(process.cwd(), 'secrets', 'orchestrator-jwks.json');
+    if (fs.existsSync(jwksPath)) {
+      const jwks = JSON.parse(fs.readFileSync(jwksPath, 'utf8'));
+      if (jwks.keys && jwks.keys.length) kid = jwks.keys[0].kid;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  const header = { alg: 'RS256', typ: 'JWT' };
+  if (kid) header.kid = kid;
+
   const jwt = await new SignJWT(payload)
-    .setProtectedHeader({ alg: 'RS256', typ: 'JWT' })
+    .setProtectedHeader(header)
+    .setIssuer(iss)
+    .setAudience(aud)
     .setIssuedAt(now)
     .setExpirationTime(now + lifetime)
+    .setJti(jti)
     .sign(key);
 
   return jwt;
@@ -47,7 +72,10 @@ async function exchangeWithKeycloak(assertion) {
   const params = new URLSearchParams();
   params.append('grant_type', 'urn:ietf:params:oauth:grant-type:token-exchange');
   params.append('subject_token', assertion);
-  params.append('subject_token_type', 'urn:ietf:params:oauth:token-type:jwt');
+  // Allow configuring the subject token type via env; default to access_token which Keycloak
+  // often expects for token-exchange when accepting OAuth tokens as subjects.
+  const subjectTokenType = process.env.SUBJECT_TOKEN_TYPE || 'urn:ietf:params:oauth:token-type:access_token';
+  params.append('subject_token_type', subjectTokenType);
   // client credentials for the Keycloak client that will accept the token-exchange
   if (process.env.KEYCLOAK_CLIENT_ID) params.append('client_id', process.env.KEYCLOAK_CLIENT_ID);
   if (process.env.KEYCLOAK_CLIENT_SECRET) params.append('client_secret', process.env.KEYCLOAK_CLIENT_SECRET);
@@ -67,4 +95,4 @@ async function exchangeWithKeycloak(assertion) {
   return data;
 }
 
-export { signAssertion, exchangeWithKeycloak };
+export { signAssertion, exchangeWithKeycloak, loadPrivateKey };

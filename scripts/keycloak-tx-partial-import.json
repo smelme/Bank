@@ -1,0 +1,45 @@
+{
+  "clientPolicies": {
+    "profiles": [
+      {
+        "name": "Passkey Token Exchange Profile",
+        "description": "Profile that enables the Token-Exchange executor",
+        "enabled": true,
+        "executors": [
+          {
+            "name": "Token Exchange Executor",
+            "providerId": "token-exchange-executor",
+            "priority": 10,
+            "config": {}
+          }
+        ]
+      }
+    ],
+    "policies": [
+      {
+        "name": "allow-orchestrator-exchange",
+        "description": "Allow orchestrator-exchange client to perform token exchanges for orchestrator issuer",
+        "enabled": true,
+        "conditions": [
+          {
+            "condition": "client-id",
+            "configuration": {
+              "clientId": [
+                "orchestrator-exchange"
+              ]
+            }
+          },
+          {
+            "condition": "subject-issuer",
+            "configuration": {
+              "issuer": "https://bank-production-37ea.up.railway.app"
+            }
+          }
+        ],
+        "profiles": [
+          "Passkey Token Exchange Profile"
+        ]
+      }
+    ]
+  }
+}

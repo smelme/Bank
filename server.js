@@ -18,7 +18,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import * as db from './database.js';
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, jwtVerify, SignJWT } from 'jose';
 
 import {
     createCredentialsRequest,
@@ -116,7 +116,7 @@ import {
   generateAuthenticationOptions,
   verifyAuthenticationResponse 
 } from '@simplewebauthn/server';
-import { signAssertion, exchangeWithKeycloak } from './token-exchange.js';
+import { signAssertion, exchangeWithKeycloak, loadPrivateKey } from './token-exchange.js';
 
 /**
  * POST /v1/users/register
@@ -678,6 +678,23 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
       userAgent: req.headers['user-agent']
     });
     
+    // Generate authorization code for OIDC flow
+    const authCode = crypto.randomBytes(32).toString('hex');
+    authCodeStore.set(authCode, {
+      user,
+      client_id: req.body.client_id || 'tamange-web', // Default for SPA
+      redirect_uri: req.body.redirect_uri,
+      scope: req.body.scope || 'openid profile email',
+      expires: Date.now() + 600000 // 10 minutes
+    });
+    
+    // Clean up expired codes
+    for (const [code, data] of authCodeStore.entries()) {
+      if (data.expires < Date.now()) {
+        authCodeStore.delete(code);
+      }
+    }
+    
     // If token exchange is enabled, sign an assertion and exchange with Keycloak
     if (process.env.ENABLE_TOKEN_EXCHANGE === 'true') {
       try {
@@ -689,6 +706,7 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
           verified: true,
           userId: user.id,
           username: user.username,
+          authCode,
           tokenExchange: tokenResponse
         });
       } catch (txErr) {
@@ -698,6 +716,7 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
           verified: true,
           userId: user.id,
           username: user.username,
+          authCode,
           tokenExchange: { success: false, error: String(txErr.message || txErr) }
         });
       }
@@ -706,7 +725,8 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
     return res.json({ 
       verified: true,
       userId: user.id,
-      username: user.username
+      username: user.username,
+      authCode
     });
     
   } catch (error) {
@@ -845,6 +865,193 @@ app.get('/.well-known/openid-configuration', (req, res) => {
     return res.status(500).json({ error: 'failed to serve openid configuration' });
   }
 });
+
+// === OIDC Provider Endpoints for Keycloak Integration ===
+
+// In-memory store for authorization codes (code -> { user, client_id, redirect_uri, ... })
+const authCodeStore = new Map();
+
+// OIDC Authorization Endpoint - shows WebAuthn login page
+app.get('/authorize', (req, res) => {
+  try {
+    const { response_type, client_id, redirect_uri, scope, state, nonce } = req.query;
+
+    if (response_type !== 'code') {
+      return res.status(400).send('Only response_type=code is supported');
+    }
+
+    // For simplicity, we'll show a simple HTML page that does WebAuthn
+    // In production, you'd want a proper login UI
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Passkey Sign In</title>
+  <script type="module">
+    import { startAuthentication } from '/node_modules/@simplewebauthn/browser/dist/index.js';
+
+    async function signIn() {
+      const username = document.getElementById('username').value;
+      if (!username) {
+        alert('Please enter username');
+        return;
+      }
+
+      try {
+        // Get authentication options
+        const optionsResp = await fetch('/v1/passkeys/auth/options', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+
+        if (!optionsResp.ok) {
+          const error = await optionsResp.json();
+          alert('Error: ' + error.error);
+          return;
+        }
+
+        const options = await optionsResp.json();
+
+        // Start WebAuthn authentication
+        const credential = await startAuthentication(options);
+
+        // Verify with server
+        const verifyResp = await fetch('/v1/passkeys/auth/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            username, 
+            credential,
+            client_id: '${client_id}',
+            redirect_uri: '${redirect_uri}',
+            scope: '${scope || 'openid profile email'}',
+            state: '${state || ''}'
+          })
+        });
+
+        if (!verifyResp.ok) {
+          const error = await verifyResp.json();
+          alert('Authentication failed: ' + error.error);
+          return;
+        }
+
+        const result = await verifyResp.json();
+
+        if (result.verified && result.authCode) {
+          // Success - redirect back with code
+          const params = new URLSearchParams({
+            code: result.authCode,
+            state: '${state || ''}'
+          });
+          window.location.href = '${redirect_uri}?${params}';
+        } else {
+          alert('Authentication failed');
+        }
+      } catch (error) {
+        console.error('Sign in error:', error);
+        alert('Sign in failed: ' + error.message);
+      }
+    }
+
+    window.signIn = signIn;
+  </script>
+</head>
+<body>
+  <h1>Passkey Sign In</h1>
+  <input type="text" id="username" placeholder="Username" required>
+  <button onclick="signIn()">Sign In with Passkey</button>
+</body>
+</html>`;
+
+    res.send(html);
+  } catch (error) {
+    console.error('Authorize error:', error);
+    res.status(500).send('Authorization failed');
+  }
+});
+
+// OIDC Token Endpoint
+app.post('/token', express.urlencoded({ extended: true }), async (req, res) => {
+  try {
+    const { grant_type, code, redirect_uri, client_id, client_secret } = req.body;
+
+    if (grant_type !== 'authorization_code') {
+      return res.status(400).json({ error: 'unsupported_grant_type' });
+    }
+
+    // Validate client (simplified - accept any for now)
+    // if (client_id !== 'tamange-web' && client_id !== process.env.KEYCLOAK_CLIENT_ID) {
+    //   return res.status(401).json({ error: 'invalid_client' });
+    // }
+
+    // Get auth code data
+    const codeData = authCodeStore.get(code);
+    if (!codeData) {
+      return res.status(400).json({ error: 'invalid_grant' });
+    }
+
+    authCodeStore.delete(code); // One-time use
+
+    // Generate tokens
+    const user = codeData.user;
+    const issuer = process.env.ORCHESTRATOR_ISS || `https://${req.get('host')}`;
+
+    // ID Token
+    const idToken = await new SignJWT({
+      sub: user.id,
+      preferred_username: user.username,
+      email: user.email,
+      name: `${user.given_name} ${user.given_name}`,
+      given_name: user.given_name,
+      family_name: user.family_name,
+      aud: client_id,
+      iss: issuer
+    })
+    .setProtectedHeader({ alg: 'RS256' })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(await loadPrivateKey());
+
+    // Access Token (simplified)
+    const accessToken = await new SignJWT({
+      sub: user.id,
+      aud: client_id,
+      iss: issuer,
+      scope: 'openid profile email'
+    })
+    .setProtectedHeader({ alg: 'RS256' })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(await loadPrivateKey());
+
+    res.json({
+      access_token: accessToken,
+      token_type: 'Bearer',
+      expires_in: 3600,
+      id_token: idToken
+    });
+
+  } catch (error) {
+    console.error('Token error:', error);
+    res.status(500).json({ error: 'token_generation_failed' });
+  }
+});
+
+// OIDC UserInfo Endpoint
+app.get('/userinfo', validateKeycloakToken, (req, res) => {
+  res.json({
+    sub: req.user.sub,
+    preferred_username: req.user.preferred_username,
+    email: req.user.email,
+    email_verified: req.user.email_verified,
+    name: req.user.name,
+    given_name: req.user.given_name,
+    family_name: req.user.family_name
+  });
+});
+
+// === End OIDC Provider Endpoints ===
 
 // Middleware to handle ES module imports without .js extension
 app.use('/node_modules', (req, res, next) => {
