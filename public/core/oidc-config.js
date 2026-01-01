@@ -39,6 +39,12 @@ export const oidcConfig = {
   // Use session storage for state
   userStore: new WebStorageStateStore({ store: window.sessionStorage }),
   
+  // Prevent the library from using revokeTokensOnSignout which causes double-request
+  revokeTokensOnSignout: false,
+  
+  // Include id_token_hint in signout by default
+  includeIdTokenHint: true,
+  
   // Additional metadata
   metadata: {
     issuer: 'https://keycloak-production-5bd5.up.railway.app/realms/Tamange%20Bank',
@@ -262,11 +268,6 @@ export function clearTokens() {
  */
 export async function signOut() {
   const manager = getUserManager();
-  const user = await manager.getUser();
-  
-  // Include id_token_hint to skip Keycloak logout confirmation
-  await manager.signoutRedirect({
-    id_token_hint: user?.id_token,
-    post_logout_redirect_uri: window.location.origin
-  });
+  // The id_token_hint will be included automatically via includeIdTokenHint config
+  await manager.signoutRedirect();
 }
