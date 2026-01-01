@@ -595,6 +595,24 @@ export async function getUserByKeycloakId(keycloakUserId) {
 }
 
 /**
+ * Get user by document number (for Digital ID sign-in)
+ */
+export async function getUserByDocumentNumber(documentNumber) {
+    if (!pool) return null;
+
+    try {
+        const result = await pool.query(
+            'SELECT * FROM users WHERE document_number = $1',
+            [documentNumber]
+        );
+        return result.rows[0] || null;
+    } catch (error) {
+        console.error('Error getting user by document number:', error);
+        throw error;
+    }
+}
+
+/**
  * Store WebAuthn challenge
  */
 export async function storeChallenge(userId, challenge, expiresInSeconds = 300) {

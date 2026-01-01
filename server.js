@@ -2535,62 +2535,44 @@ app.post('/biometric-verify', async (req, res) => {
 
         console.log('✓ Face match successful');
 
-        // Look up account by document number
-        let matchingAccount = null;
+        // Look up user by document number
+        let user = null;
         
         if (db.isDatabaseAvailable()) {
-            const dbAccount = await db.getAccountByDocumentNumber(documentNumber);
-            if (dbAccount) {
-                matchingAccount = {
-                    documentNumber: dbAccount.document_number,
-                    accountNumber: dbAccount.account_number,
-                    accountType: dbAccount.account_type,
-                    fullName: dbAccount.full_name,
-                    email: dbAccount.email,
-                    phone: dbAccount.phone,
-                    balance: parseFloat(dbAccount.balance),
-                    createdAt: dbAccount.created_at
-                };
-            }
-        } else {
-            // In-memory fallback
-            for (const [email, account] of accountsStore.entries()) {
-                if (account.documentNumber === documentNumber) {
-                    matchingAccount = account;
-                    break;
-                }
-            }
+            user = await db.getUserByDocumentNumber(documentNumber);
         }
 
-        if (!matchingAccount) {
+        if (!user) {
             return res.json({
                 success: false,
                 error: 'No account found with this digital ID. Please register for an account first.'
             });
         }
 
-        console.log('✓ Account found:', matchingAccount.accountNumber);
+        console.log('✓ User found:', user.username);
 
-        // Create session token
+        // Create session token for legacy flow (non-OIDC)
         const sessionToken = generateNonce();
         
-        if (db.isDatabaseAvailable()) {
-            await db.createSession(sessionToken, matchingAccount.documentNumber, 60);
-        } else {
-            // In-memory fallback
-            sessionTokenStore.set(sessionToken, {
-                accountNumber: matchingAccount.accountNumber,
-                documentNumber: matchingAccount.documentNumber,
-                email: matchingAccount.email,
-                fullName: matchingAccount.fullName,
-                loginTime: new Date().toISOString()
-            });
-        }
+        // Store session - using username as identifier
+        sessionStore.set(sessionToken, {
+            userId: user.id,
+            username: user.username,
+            documentNumber: user.document_number,
+            email: user.email,
+            fullName: `${user.given_name} ${user.family_name}`,
+            loginTime: new Date().toISOString(),
+            expiresAt: Date.now() + (60 * 60 * 1000) // 1 hour
+        });
 
         res.json({
             success: true,
             sessionToken: sessionToken,
-            message: 'Sign-in successful'
+            user: {
+                username: user.username,
+                email: user.email,
+                name: `${user.given_name} ${user.family_name}`
+            }
         });
 
     } catch (error) {
