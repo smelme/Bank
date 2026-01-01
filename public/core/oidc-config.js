@@ -66,6 +66,16 @@ export function getUserManager() {
   if (!userManager) {
     userManager = new UserManager(oidcConfig);
     
+    // Check if we returned from logout and need to clear state
+    if (sessionStorage.getItem('logout_pending') === 'true') {
+      sessionStorage.removeItem('logout_pending');
+      userManager.removeUser().then(() => {
+        console.log('Cleared user state after logout redirect');
+      }).catch(err => {
+        console.error('Error clearing user state:', err);
+      });
+    }
+    
     // Set up event handlers for automatic token renewal
     userManager.events.addUserLoaded((user) => {
       console.log('User loaded/token refreshed:', user.profile);
@@ -282,9 +292,9 @@ export async function signOut() {
   logoutUrl.searchParams.set('id_token_hint', user.id_token);
   logoutUrl.searchParams.set('post_logout_redirect_uri', window.location.origin);
   
-  // Clear local user state first
-  await manager.removeUser();
+  // Store a flag to clear state after redirect
+  sessionStorage.setItem('logout_pending', 'true');
   
-  // Redirect to Keycloak logout
+  // Navigate to Keycloak logout (don't clear state yet - let the redirect happen first)
   window.location.href = logoutUrl.toString();
 }
