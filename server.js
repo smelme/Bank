@@ -1357,7 +1357,6 @@ app.get('/authorize', (req, res) => {
     }
   </style>
   <script>
-  <script>
     let currentUser = null;
     let authMethods = [];
 
