@@ -189,6 +189,12 @@ export async function setupTables() {
             )
         `);
         
+        // Migration: Add nonce column if it doesn't exist (for existing tables)
+        await pool.query(`
+            ALTER TABLE oidc_auth_codes 
+            ADD COLUMN IF NOT EXISTS nonce TEXT;
+        `);
+        
         // Create indexes
         await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users(keycloak_user_id);
