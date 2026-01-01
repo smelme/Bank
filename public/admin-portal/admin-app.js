@@ -66,13 +66,16 @@ async function handleLogin(e) {
   errorEl.classList.add('hidden');
   
   try {
+    console.log('Attempting login for:', username);
     const response = await fetch(`${API_BASE}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
     
+    console.log('Login response status:', response.status);
     const data = await response.json();
+    console.log('Login response data:', data);
     
     if (!response.ok) {
       throw new Error(data.error || 'Login failed');
@@ -83,12 +86,15 @@ async function handleLogin(e) {
     appState.admin = data.admin;
     localStorage.setItem('admin_token', data.token);
     
+    console.log('Login successful, showing app');
+    
     // Show app
     document.getElementById('login-page').classList.add('hidden');
     showApp();
-    loadPage('dashboard');
+    await loadPage('dashboard');
     
   } catch (error) {
+    console.error('Login error:', error);
     errorEl.textContent = error.message;
     errorEl.classList.remove('hidden');
   } finally {
@@ -148,16 +154,16 @@ async function loadPage(pageName) {
   try {
     switch (pageName) {
       case 'dashboard':
-        await loadDashboard();
+        await window.loadDashboard();
         break;
       case 'rules':
-        await loadRules();
+        await window.loadRules();
         break;
       case 'activity':
-        await loadActivity();
+        await window.loadActivity();
         break;
       case 'users':
-        await loadUsers();
+        await window.loadUsers();
         break;
       default:
         pageContent.innerHTML = '<p>Page not found</p>';
