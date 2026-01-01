@@ -29,6 +29,11 @@ import {
     Claim
 } from 'id-verifier';
 
+// Admin portal imports
+import * as rulesEngine from './rules-engine.js';
+import * as activityLogger from './activity-logger.js';
+import bcrypt from 'bcrypt';
+
 const app = express();
 const port = process.env.PORT || 3001;
 
@@ -2855,6 +2860,315 @@ app.post('/logout', async (req, res) => {
     } catch (error) {
         console.error('Logout error:', error);
         res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// ==========================================
+// ADMIN PORTAL API ENDPOINTS
+// ==========================================
+
+/**
+ * Admin authentication middleware
+ */
+async function authenticateAdmin(req, res, next) {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No admin token provided' });
+        }
+        
+        const token = authHeader.substring(7);
+        
+        // Verify JWT token
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'orchestrator-secret');
+        const { payload } = await jwtVerify(token, secret);
+        
+        // Check if it's an admin token
+        if (payload.type !== 'admin') {
+            return res.status(403).json({ error: 'Not an admin token' });
+        }
+        
+        // Get admin user
+        const admin = await db.getAdminUserById(payload.sub);
+        if (!admin || !admin.is_active) {
+            return res.status(403).json({ error: 'Admin account not found or inactive' });
+        }
+        
+        req.admin = admin;
+        next();
+    } catch (error) {
+        console.error('Admin auth error:', error);
+        res.status(401).json({ error: 'Invalid admin token' });
+    }
+}
+
+/**
+ * POST /admin/login - Admin login
+ */
+app.post('/admin/login', express.json(), async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        
+        if (!username || !password) {
+            return res.status(400).json({ error: 'Username and password required' });
+        }
+        
+        // Get admin user
+        const admin = await db.getAdminUserByUsername(username);
+        if (!admin) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        // Verify password
+        const passwordMatch = await bcrypt.compare(password, admin.password_hash);
+        if (!passwordMatch) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+        
+        // Update last login
+        await db.updateAdminLastLogin(admin.id);
+        
+        // Generate JWT token
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'orchestrator-secret');
+        const token = await new SignJWT({
+            sub: admin.id,
+            username: admin.username,
+            email: admin.email,
+            role: admin.role,
+            type: 'admin'
+        })
+            .setProtectedHeader({ alg: 'HS256' })
+            .setIssuedAt()
+            .setExpirationTime('8h') // 8 hour session
+            .sign(secret);
+        
+        res.json({
+            success: true,
+            token,
+            admin: {
+                id: admin.id,
+                username: admin.username,
+                email: admin.email,
+                full_name: admin.full_name,
+                role: admin.role
+            }
+        });
+        
+    } catch (error) {
+        console.error('Admin login error:', error);
+        res.status(500).json({ error: 'Login failed' });
+    }
+});
+
+/**
+ * GET /admin/me - Get current admin user info
+ */
+app.get('/admin/me', authenticateAdmin, async (req, res) => {
+    res.json({
+        id: req.admin.id,
+        username: req.admin.username,
+        email: req.admin.email,
+        full_name: req.admin.full_name,
+        role: req.admin.role,
+        last_login_at: req.admin.last_login_at
+    });
+});
+
+/**
+ * GET /admin/rules - List all rules
+ */
+app.get('/admin/rules', authenticateAdmin, async (req, res) => {
+    try {
+        const filters = {};
+        
+        if (req.query.is_active !== undefined) {
+            filters.is_active = req.query.is_active === 'true';
+        }
+        
+        if (req.query.limit) {
+            filters.limit = parseInt(req.query.limit);
+        }
+        
+        const rules = await db.getRules(filters);
+        res.json({ success: true, rules });
+    } catch (error) {
+        console.error('Error getting rules:', error);
+        res.status(500).json({ error: 'Failed to get rules' });
+    }
+});
+
+/**
+ * GET /admin/rules/:id - Get single rule
+ */
+app.get('/admin/rules/:id', authenticateAdmin, async (req, res) => {
+    try {
+        const rule = await db.getRuleById(req.params.id);
+        if (!rule) {
+            return res.status(404).json({ error: 'Rule not found' });
+        }
+        res.json({ success: true, rule });
+    } catch (error) {
+        console.error('Error getting rule:', error);
+        res.status(500).json({ error: 'Failed to get rule' });
+    }
+});
+
+/**
+ * POST /admin/rules - Create new rule
+ */
+app.post('/admin/rules', authenticateAdmin, express.json(), async (req, res) => {
+    try {
+        const { name, description, conditions, actions, priority, is_active } = req.body;
+        
+        if (!name || !conditions || !actions) {
+            return res.status(400).json({ error: 'Name, conditions, and actions are required' });
+        }
+        
+        const rule = await db.createRule({
+            name,
+            description,
+            conditions,
+            actions,
+            priority: priority || 0,
+            is_active: is_active !== false,
+            created_by: req.admin.id
+        });
+        
+        res.json({ success: true, rule });
+    } catch (error) {
+        console.error('Error creating rule:', error);
+        res.status(500).json({ error: 'Failed to create rule' });
+    }
+});
+
+/**
+ * PUT /admin/rules/:id - Update rule
+ */
+app.put('/admin/rules/:id', authenticateAdmin, express.json(), async (req, res) => {
+    try {
+        const updates = {};
+        
+        if (req.body.name !== undefined) updates.name = req.body.name;
+        if (req.body.description !== undefined) updates.description = req.body.description;
+        if (req.body.conditions !== undefined) updates.conditions = req.body.conditions;
+        if (req.body.actions !== undefined) updates.actions = req.body.actions;
+        if (req.body.priority !== undefined) updates.priority = req.body.priority;
+        if (req.body.is_active !== undefined) updates.is_active = req.body.is_active;
+        
+        const rule = await db.updateRule(req.params.id, updates);
+        res.json({ success: true, rule });
+    } catch (error) {
+        console.error('Error updating rule:', error);
+        res.status(500).json({ error: 'Failed to update rule' });
+    }
+});
+
+/**
+ * DELETE /admin/rules/:id - Delete rule
+ */
+app.delete('/admin/rules/:id', authenticateAdmin, async (req, res) => {
+    try {
+        await db.deleteRule(req.params.id);
+        res.json({ success: true, message: 'Rule deleted' });
+    } catch (error) {
+        console.error('Error deleting rule:', error);
+        res.status(500).json({ error: 'Failed to delete rule' });
+    }
+});
+
+/**
+ * GET /admin/activity - Get activity logs
+ */
+app.get('/admin/activity', authenticateAdmin, async (req, res) => {
+    try {
+        const filters = {};
+        
+        if (req.query.user_id) filters.user_id = req.query.user_id;
+        if (req.query.username) filters.username = req.query.username;
+        if (req.query.auth_method) filters.auth_method = req.query.auth_method;
+        if (req.query.success !== undefined) filters.success = req.query.success === 'true';
+        if (req.query.ip_address) filters.ip_address = req.query.ip_address;
+        if (req.query.from_date) filters.from_date = new Date(req.query.from_date);
+        if (req.query.to_date) filters.to_date = new Date(req.query.to_date);
+        if (req.query.limit) filters.limit = parseInt(req.query.limit);
+        if (req.query.offset) filters.offset = parseInt(req.query.offset);
+        
+        const activity = await db.getActivity(filters);
+        res.json({ success: true, activity, count: activity.length });
+    } catch (error) {
+        console.error('Error getting activity:', error);
+        res.status(500).json({ error: 'Failed to get activity' });
+    }
+});
+
+/**
+ * GET /admin/analytics - Get activity analytics/stats
+ */
+app.get('/admin/analytics', authenticateAdmin, async (req, res) => {
+    try {
+        const filters = {};
+        
+        if (req.query.from_date) {
+            filters.from_date = new Date(req.query.from_date);
+        }
+        
+        const stats = await db.getActivityStats(filters);
+        res.json({ success: true, stats });
+    } catch (error) {
+        console.error('Error getting analytics:', error);
+        res.status(500).json({ error: 'Failed to get analytics' });
+    }
+});
+
+/**
+ * GET /admin/users/:userId/activity - Get activity for specific user
+ */
+app.get('/admin/users/:userId/activity', authenticateAdmin, async (req, res) => {
+    try {
+        const filters = {
+            user_id: req.params.userId,
+            limit: req.query.limit ? parseInt(req.query.limit) : 50
+        };
+        
+        if (req.query.from_date) filters.from_date = new Date(req.query.from_date);
+        if (req.query.to_date) filters.to_date = new Date(req.query.to_date);
+        
+        const activity = await db.getActivity(filters);
+        res.json({ success: true, activity, count: activity.length });
+    } catch (error) {
+        console.error('Error getting user activity:', error);
+        res.status(500).json({ error: 'Failed to get user activity' });
+    }
+});
+
+/**
+ * POST /admin/test-rule - Test a rule against sample context
+ */
+app.post('/admin/test-rule', authenticateAdmin, express.json(), async (req, res) => {
+    try {
+        const { rule, context } = req.body;
+        
+        if (!rule || !context) {
+            return res.status(400).json({ error: 'Rule and context required' });
+        }
+        
+        // Create a temporary rule structure
+        const testRules = [{ ...rule, id: 'test', priority: 0 }];
+        
+        // Temporarily replace getRules to return our test rule
+        const originalGetRules = db.getRules;
+        db.getRules = async () => testRules;
+        
+        // Evaluate the rule
+        const result = await rulesEngine.evaluateRules(context);
+        
+        // Restore original function
+        db.getRules = originalGetRules;
+        
+        res.json({ success: true, result });
+    } catch (error) {
+        console.error('Error testing rule:', error);
+        res.status(500).json({ error: 'Failed to test rule' });
     }
 });
 

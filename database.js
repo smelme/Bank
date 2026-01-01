@@ -232,6 +232,86 @@ export async function setupTables() {
             'Whether this is the user''s primary/preferred authentication method';
         `);
         
+        // ===  ADMIN PORTAL TABLES ===
+        
+        // Admin users table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS admin_users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                username VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                full_name VARCHAR(255),
+                role VARCHAR(50) DEFAULT 'admin',
+                is_active BOOLEAN DEFAULT true,
+                last_login_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata JSONB
+            )
+        `);
+        
+        // Authentication rules table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS auth_rules (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                priority INTEGER NOT NULL DEFAULT 100,
+                is_enabled BOOLEAN DEFAULT true,
+                rule_type VARCHAR(50) NOT NULL,
+                conditions JSONB NOT NULL,
+                actions JSONB NOT NULL,
+                created_by UUID REFERENCES admin_users(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata JSONB
+            )
+        `);
+        
+        await pool.query(`
+            COMMENT ON COLUMN auth_rules.rule_type IS 
+            'Type of rule: ip_filter, geo_filter, method_filter, combined';
+            COMMENT ON COLUMN auth_rules.conditions IS 
+            'JSON array of conditions with operator (AND/OR): [{field: "ip", operator: "equals", value: "1.2.3.4"}, {field: "country", operator: "in", value: ["US", "CA"]}]';
+            COMMENT ON COLUMN auth_rules.actions IS 
+            'JSON object defining actions: {allow_methods: ["passkey", "digitalid"], block: false, require_2fa: true}';
+            COMMENT ON COLUMN auth_rules.priority IS 
+            'Lower number = higher priority. Rules evaluated in order of priority';
+        `);
+        
+        // Authentication activity log table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS auth_activity (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+                username VARCHAR(255),
+                auth_method VARCHAR(50),
+                success BOOLEAN NOT NULL,
+                failure_reason TEXT,
+                ip_address INET,
+                user_agent TEXT,
+                geo_country VARCHAR(2),
+                geo_region VARCHAR(255),
+                geo_city VARCHAR(255),
+                geo_latitude DECIMAL(10, 8),
+                geo_longitude DECIMAL(11, 8),
+                rules_evaluated JSONB,
+                rules_matched UUID[],
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata JSONB
+            )
+        `);
+        
+        await pool.query(`
+            COMMENT ON COLUMN auth_activity.auth_method IS 
+            'Method used: passkey, email_otp, sms_otp, digitalid';
+            COMMENT ON COLUMN auth_activity.rules_evaluated IS 
+            'JSON array of rule IDs that were evaluated during this auth attempt';
+            COMMENT ON COLUMN auth_activity.rules_matched IS 
+            'Array of rule IDs that matched and affected this auth attempt';
+        `);
+        
         // Create indexes
         await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users(keycloak_user_id);
@@ -246,6 +326,15 @@ export async function setupTables() {
             CREATE INDEX IF NOT EXISTS idx_auth_codes_expires ON oidc_auth_codes(expires_at);
             CREATE INDEX IF NOT EXISTS idx_user_auth_methods_user_id ON user_auth_methods(user_id);
             CREATE INDEX IF NOT EXISTS idx_user_auth_methods_type ON user_auth_methods(user_id, method_type) WHERE is_enabled = true;
+            CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username);
+            CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
+            CREATE INDEX IF NOT EXISTS idx_auth_rules_priority ON auth_rules(priority, is_enabled) WHERE is_enabled = true;
+            CREATE INDEX IF NOT EXISTS idx_auth_rules_type ON auth_rules(rule_type, is_enabled) WHERE is_enabled = true;
+            CREATE INDEX IF NOT EXISTS idx_auth_activity_user_id ON auth_activity(user_id, timestamp DESC);
+            CREATE INDEX IF NOT EXISTS idx_auth_activity_timestamp ON auth_activity(timestamp DESC);
+            CREATE INDEX IF NOT EXISTS idx_auth_activity_ip ON auth_activity(ip_address);
+            CREATE INDEX IF NOT EXISTS idx_auth_activity_country ON auth_activity(geo_country);
+            CREATE INDEX IF NOT EXISTS idx_auth_activity_success ON auth_activity(success, timestamp DESC);
         `);
         
         // === LEGACY TABLES (Keep for now, migrate later) ===
@@ -1341,3 +1430,381 @@ export async function backfillDigitalIdAuthMethods() {
     }
 }
 
+
+// ==========================================
+// ADMIN PORTAL FUNCTIONS
+// ==========================================
+
+/**
+ * Admin User Management
+ */
+
+export async function createAdminUser(userData) {
+    if (!pool) throw new Error('No database connection');
+    
+    try {
+        const result = await pool.query(
+            `INSERT INTO admin_users (username, email, password_hash, full_name, role, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id, username, email, full_name, role, is_active, created_at`,
+            [userData.username, userData.email, userData.password_hash, userData.full_name, userData.role || 'admin', JSON.stringify(userData.metadata || {})]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error creating admin user:', error);
+        throw error;
+    }
+}
+
+export async function getAdminUserByUsername(username) {
+    if (!pool) return null;
+    
+    try {
+        const result = await pool.query(
+            'SELECT * FROM admin_users WHERE username = $1 AND is_active = true',
+            [username]
+        );
+        return result.rows[0] || null;
+    } catch (error) {
+        console.error('Error getting admin user:', error);
+        return null;
+    }
+}
+
+export async function getAdminUserById(id) {
+    if (!pool) return null;
+    
+    try {
+        const result = await pool.query(
+            'SELECT id, username, email, full_name, role, is_active, last_login_at, created_at FROM admin_users WHERE id = $1',
+            [id]
+        );
+        return result.rows[0] || null;
+    } catch (error) {
+        console.error('Error getting admin user by ID:', error);
+        return null;
+    }
+}
+
+export async function updateAdminLastLogin(adminId) {
+    if (!pool) return false;
+    
+    try {
+        await pool.query(
+            'UPDATE admin_users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1',
+            [adminId]
+        );
+        return true;
+    } catch (error) {
+        console.error('Error updating admin last login:', error);
+        return false;
+    }
+}
+
+/**
+ * Auth Rules Management
+ */
+
+export async function createRule(ruleData) {
+    if (!pool) throw new Error('No database connection');
+    
+    try {
+        const result = await pool.query(
+            `INSERT INTO auth_rules (name, description, conditions, actions, priority, is_active, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING *`,
+            [
+                ruleData.name,
+                ruleData.description,
+                JSON.stringify(ruleData.conditions),
+                JSON.stringify(ruleData.actions),
+                ruleData.priority || 0,
+                ruleData.is_active !== false,
+                ruleData.created_by
+            ]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error creating rule:', error);
+        throw error;
+    }
+}
+
+export async function getRules(filters = {}) {
+    if (!pool) return [];
+    
+    try {
+        let query = 'SELECT * FROM auth_rules WHERE 1=1';
+        const params = [];
+        let paramIndex = 1;
+        
+        if (filters.is_active !== undefined) {
+            query += ` AND is_active = $${paramIndex}`;
+            params.push(filters.is_active);
+            paramIndex++;
+        }
+        
+        query += ' ORDER BY priority DESC, created_at DESC';
+        
+        if (filters.limit) {
+            query += ` LIMIT $${paramIndex}`;
+            params.push(filters.limit);
+        }
+        
+        const result = await pool.query(query, params);
+        return result.rows;
+    } catch (error) {
+        console.error('Error getting rules:', error);
+        return [];
+    }
+}
+
+export async function getRuleById(id) {
+    if (!pool) return null;
+    
+    try {
+        const result = await pool.query('SELECT * FROM auth_rules WHERE id = $1', [id]);
+        return result.rows[0] || null;
+    } catch (error) {
+        console.error('Error getting rule by ID:', error);
+        return null;
+    }
+}
+
+export async function updateRule(id, updates) {
+    if (!pool) throw new Error('No database connection');
+    
+    try {
+        const fields = [];
+        const values = [];
+        let paramIndex = 1;
+        
+        if (updates.name !== undefined) {
+            fields.push(`name = $${paramIndex}`);
+            values.push(updates.name);
+            paramIndex++;
+        }
+        if (updates.description !== undefined) {
+            fields.push(`description = $${paramIndex}`);
+            values.push(updates.description);
+            paramIndex++;
+        }
+        if (updates.conditions !== undefined) {
+            fields.push(`conditions = $${paramIndex}`);
+            values.push(JSON.stringify(updates.conditions));
+            paramIndex++;
+        }
+        if (updates.actions !== undefined) {
+            fields.push(`actions = $${paramIndex}`);
+            values.push(JSON.stringify(updates.actions));
+            paramIndex++;
+        }
+        if (updates.priority !== undefined) {
+            fields.push(`priority = $${paramIndex}`);
+            values.push(updates.priority);
+            paramIndex++;
+        }
+        if (updates.is_active !== undefined) {
+            fields.push(`is_active = $${paramIndex}`);
+            values.push(updates.is_active);
+            paramIndex++;
+        }
+        
+        fields.push(`updated_at = CURRENT_TIMESTAMP`);
+        values.push(id);
+        
+        const query = `UPDATE auth_rules SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`;
+        const result = await pool.query(query, values);
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error updating rule:', error);
+        throw error;
+    }
+}
+
+export async function deleteRule(id) {
+    if (!pool) throw new Error('No database connection');
+    
+    try {
+        await pool.query('DELETE FROM auth_rules WHERE id = $1', [id]);
+        return true;
+    } catch (error) {
+        console.error('Error deleting rule:', error);
+        throw error;
+    }
+}
+
+/**
+ * Activity Logging
+ */
+
+export async function logActivity(activityData) {
+    if (!pool) {
+        console.warn('No database connection - activity not logged');
+        return null;
+    }
+    
+    try {
+        const result = await pool.query(
+            `INSERT INTO auth_activity (
+                user_id, username, auth_method, ip_address, user_agent, 
+                geo_country, geo_city, success, failure_reason, metadata
+             )
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             RETURNING *`,
+            [
+                activityData.user_id || null,
+                activityData.username,
+                activityData.auth_method,
+                activityData.ip_address,
+                activityData.user_agent || null,
+                activityData.geo_country || null,
+                activityData.geo_city || null,
+                activityData.success,
+                activityData.failure_reason || null,
+                JSON.stringify(activityData.metadata || {})
+            ]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error logging activity:', error);
+        return null;
+    }
+}
+
+export async function getActivity(filters = {}) {
+    if (!pool) return [];
+    
+    try {
+        let query = 'SELECT * FROM auth_activity WHERE 1=1';
+        const params = [];
+        let paramIndex = 1;
+        
+        if (filters.user_id) {
+            query += ` AND user_id = $${paramIndex}`;
+            params.push(filters.user_id);
+            paramIndex++;
+        }
+        
+        if (filters.username) {
+            query += ` AND username = $${paramIndex}`;
+            params.push(filters.username);
+            paramIndex++;
+        }
+        
+        if (filters.auth_method) {
+            query += ` AND auth_method = $${paramIndex}`;
+            params.push(filters.auth_method);
+            paramIndex++;
+        }
+        
+        if (filters.success !== undefined) {
+            query += ` AND success = $${paramIndex}`;
+            params.push(filters.success);
+            paramIndex++;
+        }
+        
+        if (filters.ip_address) {
+            query += ` AND ip_address = $${paramIndex}`;
+            params.push(filters.ip_address);
+            paramIndex++;
+        }
+        
+        if (filters.from_date) {
+            query += ` AND created_at >= $${paramIndex}`;
+            params.push(filters.from_date);
+            paramIndex++;
+        }
+        
+        if (filters.to_date) {
+            query += ` AND created_at <= $${paramIndex}`;
+            params.push(filters.to_date);
+            paramIndex++;
+        }
+        
+        query += ' ORDER BY created_at DESC';
+        
+        if (filters.limit) {
+            query += ` LIMIT $${paramIndex}`;
+            params.push(filters.limit);
+            paramIndex++;
+        }
+        
+        if (filters.offset) {
+            query += ` OFFSET $${paramIndex}`;
+            params.push(filters.offset);
+        }
+        
+        const result = await pool.query(query, params);
+        return result.rows;
+    } catch (error) {
+        console.error('Error getting activity:', error);
+        return [];
+    }
+}
+
+export async function getActivityStats(filters = {}) {
+    if (!pool) return null;
+    
+    try {
+        const fromDate = filters.from_date || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
+        
+        // Total attempts
+        const totalResult = await pool.query(
+            'SELECT COUNT(*) as total FROM auth_activity WHERE created_at >= $1',
+            [fromDate]
+        );
+        
+        // Success rate
+        const successResult = await pool.query(
+            `SELECT 
+                COUNT(*) FILTER (WHERE success = true) as successful,
+                COUNT(*) FILTER (WHERE success = false) as failed
+             FROM auth_activity 
+             WHERE created_at >= $1`,
+            [fromDate]
+        );
+        
+        // By method
+        const methodResult = await pool.query(
+            `SELECT auth_method, COUNT(*) as count 
+             FROM auth_activity 
+             WHERE created_at >= $1 
+             GROUP BY auth_method 
+             ORDER BY count DESC`,
+            [fromDate]
+        );
+        
+        // By country
+        const countryResult = await pool.query(
+            `SELECT geo_country, COUNT(*) as count 
+             FROM auth_activity 
+             WHERE created_at >= $1 AND geo_country IS NOT NULL
+             GROUP BY geo_country 
+             ORDER BY count DESC 
+             LIMIT 10`,
+            [fromDate]
+        );
+        
+        // Recent activity
+        const recentResult = await pool.query(
+            `SELECT * FROM auth_activity 
+             WHERE created_at >= $1 
+             ORDER BY created_at DESC 
+             LIMIT 10`,
+            [fromDate]
+        );
+        
+        return {
+            total: parseInt(totalResult.rows[0].total),
+            successful: parseInt(successResult.rows[0].successful),
+            failed: parseInt(successResult.rows[0].failed),
+            byMethod: methodResult.rows,
+            byCountry: countryResult.rows,
+            recent: recentResult.rows
+        };
+    } catch (error) {
+        console.error('Error getting activity stats:', error);
+        return null;
+    }
+}
