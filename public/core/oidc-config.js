@@ -71,6 +71,15 @@ export function getUserManager() {
       sessionStorage.removeItem('logout_pending');
       userManager.removeUser().then(() => {
         console.log('Cleared user state after logout redirect');
+        
+        // Refresh navigation to show sign-in link again
+        import('./header.js').then(header => {
+          if (typeof header.refreshNavState === 'function') {
+            header.refreshNavState();
+          }
+        }).catch(err => {
+          console.warn('Could not refresh nav state:', err);
+        });
       }).catch(err => {
         console.error('Error clearing user state:', err);
       });
