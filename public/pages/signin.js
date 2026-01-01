@@ -29,7 +29,21 @@ async function handleUnifiedSignIn() {
 export async function spaMount() {
   const resultDiv = document.getElementById('verifyResult');
   
-  // Replace the single button with unified sign-in
+  // Check if we're coming from the /authorize endpoint with OIDC parameters
+  const oidcParams = sessionStorage.getItem('oidc_params');
+  
+  // If we have OIDC params, we're doing Digital ID sign-in from auth method selection
+  // Keep the Digital ID verification flow as-is
+  if (oidcParams) {
+    console.log('Digital ID sign-in mode - keeping verification flow');
+    // Don't replace the button - let the Digital ID flow work normally
+    return () => {
+      // Cleanup if needed
+    };
+  }
+  
+  // Otherwise, this is a direct navigation to /signin
+  // Show unified sign-in button that redirects to auth method selection
   const signInContainer = document.getElementById('step-verify');
   const verifyBtn = document.getElementById('verifyBtn');
   
@@ -326,20 +340,59 @@ async function verifyBiometric() {
             return;
         }
 
-        // Success - redirect to home page with session token
-        sessionStorage.setItem('sessionToken', result.sessionToken);
+        // Check if we're in OIDC flow (coming from /authorize)
+        const oidcParams = sessionStorage.getItem('oidc_params');
         
-        // Refresh nav state before redirect
-        try {
-            const header = await import('../core/header.js');
-            if (typeof header.refreshNavState === 'function') {
-                header.refreshNavState();
+        if (oidcParams) {
+            // OIDC flow - complete authorization with Digital ID authentication
+            const params = JSON.parse(oidcParams);
+            sessionStorage.removeItem('oidc_params'); // Clean up
+            
+            resultDiv.innerHTML = `<div class="loading">${t('completingAuthentication') || 'Completing authentication...'}</div>`;
+            
+            // Call backend to generate authorization code for this user
+            const authResponse = await fetch('/v1/auth/digitalid/complete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sessionToken: result.sessionToken,
+                    username: params.username,
+                    userId: params.userId,
+                    client_id: params.client_id,
+                    redirect_uri: params.redirect_uri,
+                    scope: params.scope,
+                    state: params.state,
+                    nonce: params.nonce
+                })
+            });
+            
+            const authResult = await authResponse.json();
+            
+            if (!authResult.success) {
+                throw new Error(authResult.error || 'Failed to complete authentication');
             }
-        } catch (e) {
-            console.warn('Could not refresh nav state:', e);
+            
+            // Redirect to Keycloak with authorization code
+            window.location.href = authResult.redirectUrl;
+            
+        } else {
+            // Direct sign-in (not from OIDC flow) - use legacy flow
+            sessionStorage.setItem('sessionToken', result.sessionToken);
+            
+            // Refresh nav state before redirect
+            try {
+                const header = await import('../core/header.js');
+                if (typeof header.refreshNavState === 'function') {
+                    header.refreshNavState();
+                }
+            } catch (e) {
+                console.warn('Could not refresh nav state:', e);
+            }
+            
+            window.location.href = '/home';
         }
-        
-        window.location.href = '/home';
 
     } catch (error) {
         console.error('Biometric verification error:', error);

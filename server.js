@@ -1241,6 +1241,112 @@ app.post('/v1/auth/faceid/verify', async (req, res) => {
   }
 });
 
+/**
+ * POST /v1/auth/digitalid/complete
+ * Complete Digital ID authentication and generate authorization code for OIDC flow
+ * This is called after successful biometric verification when coming from /authorize
+ */
+app.post('/v1/auth/digitalid/complete', async (req, res) => {
+  console.log('=== COMPLETE DIGITAL ID AUTHENTICATION ===');
+  
+  try {
+    const { sessionToken, username, userId, client_id, redirect_uri, scope, state, nonce } = req.body;
+    
+    if (!sessionToken || (!userId && !username)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'sessionToken and userId/username are required' 
+      });
+    }
+    
+    // Get user
+    let user;
+    if (userId) {
+      user = await db.getUserById(userId);
+    } else {
+      user = await db.getUserByUsername(username);
+    }
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'User not found' 
+      });
+    }
+    
+    // Update auth method last used
+    try {
+      await db.updateAuthMethodLastUsed(user.id, 'digitalid', 'primary-device');
+    } catch (authMethodErr) {
+      console.error('Failed to update Digital ID auth method last used (non-critical):', authMethodErr);
+    }
+    
+    // Log successful authentication
+    await db.logAuthEvent({
+      userId: user.id,
+      username: user.username,
+      eventType: 'DIGITALID_AUTH',
+      method: 'DIGITAL_ID',
+      result: 'SUCCESS',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent']
+    });
+    
+    // Generate authorization code for OIDC flow
+    const crypto = await import('crypto');
+    const authCode = crypto.randomBytes(32).toString('hex');
+    const clientIdParam = client_id || 'tamange-web';
+    const redirectUriParam = redirect_uri;
+    const scopeParam = scope || 'openid profile email';
+    const nonceParam = nonce || null;
+    const stateParam = state || null;
+    
+    // Store auth code in database
+    const stored = await db.storeAuthCode(
+      authCode, 
+      user.id, 
+      clientIdParam, 
+      redirectUriParam, 
+      scopeParam, 
+      user, 
+      nonceParam, 
+      600
+    );
+    
+    if (!stored) {
+      console.error('Failed to store auth code in database');
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to generate authorization code' 
+      });
+    }
+    
+    // Build redirect URL with authorization code
+    const redirectUrl = new URL(redirectUriParam);
+    redirectUrl.searchParams.set('code', authCode);
+    if (stateParam) {
+      redirectUrl.searchParams.set('state', stateParam);
+    }
+    
+    console.log('Digital ID authentication successful for user:', user.username);
+    console.log('Redirecting to:', redirectUrl.toString());
+    
+    return res.json({ 
+      success: true,
+      userId: user.id,
+      username: user.username,
+      redirectUrl: redirectUrl.toString()
+    });
+    
+  } catch (error) {
+    console.error('Error completing Digital ID authentication:', error);
+    return res.status(500).json({ 
+      success: false,
+      error: 'Failed to complete authentication' 
+    });
+  }
+});
+
 // DEBUG: Inspect stored passkeys for a username (in-memory / DB)
 app.get('/debug/passkeys/:username', async (req, res) => {
   try {
