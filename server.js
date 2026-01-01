@@ -1706,6 +1706,37 @@ app.post('/get-account', async (req, res) => {
 });
 
 // Logout endpoint
+// OIDC Logout Endpoint (GET) - for Keycloak backchannel logout
+app.get('/logout', async (req, res) => {
+    try {
+        const { post_logout_redirect_uri, state, id_token_hint } = req.query;
+
+        console.log('OIDC logout request received:', { 
+            post_logout_redirect_uri, 
+            state,
+            id_token_hint: id_token_hint ? 'present' : 'absent'
+        });
+
+        // If there's a post_logout_redirect_uri, redirect to it
+        if (post_logout_redirect_uri) {
+            const redirectUrl = new URL(post_logout_redirect_uri);
+            if (state) {
+                redirectUrl.searchParams.set('state', state);
+            }
+            console.log('Redirecting to:', redirectUrl.toString());
+            return res.redirect(redirectUrl.toString());
+        }
+
+        // Otherwise just return success
+        res.json({ success: true, message: 'Logged out successfully' });
+
+    } catch (error) {
+        console.error('OIDC logout error:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+});
+
+// Legacy logout endpoint (POST) - for direct API calls
 app.post('/logout', async (req, res) => {
     try {
         const { sessionToken } = req.body;
