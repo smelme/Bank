@@ -252,38 +252,12 @@ app.post('/v1/users/register', async (req, res) => {
       });
     }
     
-    // Create user in Keycloak first
-    let keycloakUserId;
-    try {
-      keycloakUserId = await keycloakAdmin.createKeycloakUser({
-        username,
-        email,
-        firstName: givenName,
-        lastName: familyName,
-        documentNumber,
-        attributes: {
-          phone: phone ? [phone] : [],
-          document_type: documentType ? [documentType] : [],
-          birth_date: birthDate ? [birthDate] : []
-        }
-      });
-      
-      console.log(`Created Keycloak user: ${keycloakUserId}`);
-    } catch (keycloakError) {
-      console.error('Failed to create Keycloak user:', keycloakError);
-      // In dev return the Keycloak error message to help debugging
-      return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to create user in authentication system',
-        details: keycloakError.message || String(keycloakError)
-      });
-    }
-    
-    // Create user in Orchestrator DB (master)
+    // Create user in Orchestrator DB ONLY
+    // Keycloak user will be created automatically on first login via identity provider
     let user;
     try {
       user = await db.createUser({
-        keycloakUserId,
+        keycloakUserId: null, // Will be set later when Keycloak auto-creates user on first login
         username,
         email,
         phone,
@@ -296,16 +270,9 @@ app.post('/v1/users/register', async (req, res) => {
         faceDescriptor
       });
       
-      console.log(`Created user in Orchestrator DB: ${user.id}`);
+      console.log(`Created user in Orchestrator DB: ${user.id} (Keycloak user will be auto-created on first login)`);
     } catch (dbError) {
-      // Rollback: Delete Keycloak user if DB creation fails
       console.error('Failed to create user in Orchestrator DB:', dbError.message);
-      try {
-        await keycloakAdmin.deleteKeycloakUser(keycloakUserId);
-        console.log('Rolled back Keycloak user creation');
-      } catch (rollbackError) {
-        console.error('Failed to rollback Keycloak user:', rollbackError.message);
-      }
       
       return res.status(500).json({ 
         success: false, 
