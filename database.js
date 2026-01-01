@@ -104,14 +104,14 @@ export async function setupTables() {
                 id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 keycloak_user_id VARCHAR(255) UNIQUE,
                 username VARCHAR(255) UNIQUE NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
+                email VARCHAR(255) NOT NULL,
                 phone VARCHAR(50),
                 
                 -- Digital ID verified data
                 given_name VARCHAR(255),
                 family_name VARCHAR(255),
                 birth_date DATE,
-                document_number VARCHAR(100) UNIQUE,
+                document_number VARCHAR(100),
                 document_type VARCHAR(50),
                 issuing_authority VARCHAR(255),
                 face_descriptor JSONB,
@@ -125,6 +125,14 @@ export async function setupTables() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        `);
+        
+        // Migration: Remove UNIQUE constraints from email and document_number (for existing tables)
+        await pool.query(`
+            ALTER TABLE users DROP CONSTRAINT IF EXISTS users_email_key;
+        `);
+        await pool.query(`
+            ALTER TABLE users DROP CONSTRAINT IF EXISTS users_document_number_key;
         `);
         
         // Passkey credentials table
