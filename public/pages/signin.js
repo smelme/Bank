@@ -36,7 +36,25 @@ export async function spaMount() {
   // Keep the Digital ID verification flow as-is
   if (oidcParams) {
     console.log('Digital ID sign-in mode - keeping verification flow');
-    // Don't replace the button - let the Digital ID flow work normally
+    
+    // Show loading state on the verify button while models load
+    const verifyBtn = document.getElementById('verifyBtn');
+    if (verifyBtn && !modelsLoaded) {
+      verifyBtn.disabled = true;
+      verifyBtn.textContent = '⏳ Loading face recognition models...';
+      verifyBtn.style.opacity = '0.6';
+      
+      // Wait for models to load, then enable button
+      const checkModels = setInterval(() => {
+        if (modelsLoaded) {
+          clearInterval(checkModels);
+          verifyBtn.disabled = false;
+          verifyBtn.textContent = verifyBtn.getAttribute('data-en') || 'Sign In with Digital ID';
+          verifyBtn.style.opacity = '1';
+        }
+      }, 100);
+    }
+    
     return () => {
       // Cleanup if needed
     };
@@ -100,22 +118,49 @@ let videoStream = null;
 let capturedImageData = null;
 let portraitImageData = null;
 let modelsLoaded = false;
+let modelsLoading = false;
 
-// Load face-api models
+// Load face-api models with progress indicator
 async function loadModels() {
+    if (modelsLoaded || modelsLoading) return;
+    
+    modelsLoading = true;
     try {
+        console.log('⏳ Loading face recognition models...');
         const modelPath = '/models';
-        await faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath);
-        await faceapi.nets.faceLandmark68Net.loadFromUri(modelPath);
-        await faceapi.nets.faceRecognitionNet.loadFromUri(modelPath);
+        
+        // Load models in parallel for better performance
+        await Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri(modelPath),
+            faceapi.nets.faceLandmark68Net.loadFromUri(modelPath),
+            faceapi.nets.faceRecognitionNet.loadFromUri(modelPath)
+        ]);
+        
         modelsLoaded = true;
-        console.log('Face recognition models loaded');
+        modelsLoading = false;
+        console.log('✓ Face recognition models loaded successfully');
+        
+        // Enable the verify button if it exists
+        const verifyBtn = document.getElementById('verifyBtn');
+        if (verifyBtn) {
+            verifyBtn.disabled = false;
+            verifyBtn.textContent = verifyBtn.getAttribute('data-en') || 'Sign In with Digital ID';
+        }
     } catch (error) {
+        modelsLoading = false;
         console.error('Failed to load face recognition models:', error);
+        
+        // Show error on button if it exists
+        const verifyBtn = document.getElementById('verifyBtn');
+        if (verifyBtn) {
+            verifyBtn.disabled = true;
+            verifyBtn.textContent = 'Failed to load models. Refresh to try again.';
+            verifyBtn.style.backgroundColor = '#dc3545';
+        }
     }
 }
 
-// Initialize models on page load
+// Start loading models immediately when module is imported
 loadModels();
 
 // Initialize i18n when DOM is ready (header.js will handle the toggle UI)
@@ -156,6 +201,13 @@ function displayVerifiedData(claims) {
 // Step 1: Verify Digital ID
 document.getElementById('verifyBtn').addEventListener('click', async () => {
     const resultDiv = document.getElementById('verifyResult');
+    
+    // Check if models are loaded before proceeding
+    if (!modelsLoaded) {
+        resultDiv.innerHTML = `<div class="loading">⏳ Face recognition models are still loading. Please wait...</div>`;
+        return;
+    }
+    
     resultDiv.innerHTML = `<div class="loading">${t('loadingInitVerification')}</div>`;
 
     try {
