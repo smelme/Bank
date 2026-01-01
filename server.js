@@ -228,13 +228,27 @@ app.post('/v1/users/register', async (req, res) => {
         error: 'Missing required fields' 
       });
     }
+
+    // Check if this exact person already exists (email + DOB + first name + last name)
+    // This prevents duplicate registrations while allowing family members to share emails
+    if (birthDate) {
+      const existingPerson = await db.getUserByPersonalInfo(email, birthDate, givenName, familyName);
+      if (existingPerson) {
+        return res.status(409).json({ 
+          success: false, 
+          error: 'Customer already exists with this email, date of birth, and name combination',
+          hint: 'This person is already registered. Please sign in instead.'
+        });
+      }
+    }
     
-    // Check if user already exists in Orchestrator DB
+    // Check if username already exists in Orchestrator DB
     const existingUser = await db.getUserByUsername(username);
     if (existingUser) {
       return res.status(409).json({ 
         success: false, 
-        error: 'Username already exists' 
+        error: 'Username already exists',
+        hint: 'Please choose a different username'
       });
     }
     

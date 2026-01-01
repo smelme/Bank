@@ -489,6 +489,40 @@ export async function getUserByUsername(username) {
     }
 }
 
+/**
+ * Check if user exists by email + DOB + first name + last name combination
+ * This prevents duplicate registrations while allowing family members to share emails
+ */
+export async function getUserByPersonalInfo(email, birthDate, givenName, familyName) {
+    if (!pool) {
+        // In-memory fallback
+        for (const user of inMemoryUsers.values()) {
+            if (user.email === email && 
+                user.birth_date === birthDate &&
+                user.given_name === givenName &&
+                user.family_name === familyName) {
+                return user;
+            }
+        }
+        return null;
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT * FROM users 
+             WHERE email = $1 
+             AND birth_date = $2 
+             AND given_name = $3 
+             AND family_name = $4`,
+            [email, birthDate, givenName, familyName]
+        );
+        return result.rows[0] || null;
+    } catch (error) {
+        console.error('Error checking for duplicate user:', error);
+        return null;
+    }
+}
+
 // Debug helper: list in-memory users (dev only)
 export async function __debugListUsers() {
     if (!pool) {
