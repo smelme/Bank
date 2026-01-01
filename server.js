@@ -1255,6 +1255,30 @@ app.get('/debug/passkeys/:username', async (req, res) => {
   }
 });
 
+// Admin: Backfill passkey auth methods for existing users
+app.post('/admin/backfill-passkeys', async (req, res) => {
+  console.log('=== BACKFILL PASSKEY AUTH METHODS ===');
+  
+  try {
+    // This is an admin operation - in production, add authentication
+    const results = await db.backfillPasskeyAuthMethods();
+    
+    return res.json({
+      success: true,
+      message: 'Passkey auth methods backfilled',
+      ...results
+    });
+    
+  } catch (error) {
+    console.error('Backfill error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Backfill failed',
+      message: error.message
+    });
+  }
+});
+
 // Admin: Backfill FaceID auth methods for existing users
 app.post('/admin/backfill-faceid', async (req, res) => {
   console.log('=== BACKFILL FACEID AUTH METHODS ===');
@@ -1267,6 +1291,32 @@ app.post('/admin/backfill-faceid', async (req, res) => {
       success: true,
       message: 'FaceID auth methods backfilled',
       ...results
+    });
+    
+  } catch (error) {
+    console.error('Backfill error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Backfill failed',
+      message: error.message
+    });
+  }
+});
+
+// Admin: Run all backfills
+app.post('/admin/backfill-all', async (req, res) => {
+  console.log('=== BACKFILL ALL AUTH METHODS ===');
+  
+  try {
+    // This is an admin operation - in production, add authentication
+    const passkeyResults = await db.backfillPasskeyAuthMethods();
+    const faceidResults = await db.backfillFaceIdAuthMethods();
+    
+    return res.json({
+      success: true,
+      message: 'All auth methods backfilled',
+      passkeys: passkeyResults,
+      faceid: faceidResults
     });
     
   } catch (error) {

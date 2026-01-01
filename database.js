@@ -1117,6 +1117,109 @@ export async function disableAuthMethod(userId, methodId) {
 }
 
 /**
+ * Backfill passkey auth methods for existing users with stored passkeys
+ * This adds passkey entries to user_auth_methods for users who registered before multi-auth was implemented
+ */
+export async function backfillPasskeyAuthMethods() {
+    if (!pool) {
+        console.warn('No database connection - cannot backfill');
+        return { success: false, error: 'No database connection' };
+    }
+
+    try {
+        // Find all users with passkeys who don't have passkey auth method entries
+        const usersQuery = `
+            SELECT DISTINCT u.id, u.username, u.email, pc.credential_id, pc.created_at
+            FROM users u
+            INNER JOIN passkey_credentials pc ON pc.user_id = u.id
+            WHERE NOT EXISTS (
+                SELECT 1 FROM user_auth_methods uam
+                WHERE uam.user_id = u.id AND uam.method_type = 'passkey'
+            )
+            ORDER BY u.username
+        `;
+        
+        const result = await pool.query(usersQuery);
+        const users = result.rows;
+        
+        console.log(`Found ${users.length} users with passkeys missing passkey auth method`);
+        
+        if (users.length === 0) {
+            return {
+                success: true,
+                message: 'No users to backfill',
+                usersProcessed: 0,
+                usersSucceeded: 0,
+                usersFailed: 0
+            };
+        }
+        
+        let successCount = 0;
+        let failCount = 0;
+        const failedUsers = [];
+        
+        for (const user of users) {
+            try {
+                const deviceInfo = {
+                    type: 'passkey',
+                    credentialId: user.credential_id,
+                    registeredAt: user.created_at || new Date().toISOString()
+                };
+                
+                const metadata = {
+                    source: 'existing_passkey',
+                    backfilled: true,
+                    backfilledAt: new Date().toISOString()
+                };
+                
+                // Check if this is the user's first auth method
+                const existingMethodsResult = await pool.query(
+                    'SELECT COUNT(*) as count FROM user_auth_methods WHERE user_id = $1 AND is_enabled = true',
+                    [user.id]
+                );
+                const isPrimary = existingMethodsResult.rows[0].count === '0';
+                
+                // Insert passkey auth method
+                await pool.query(
+                    `INSERT INTO user_auth_methods 
+                    (user_id, method_type, method_identifier, device_info, is_primary, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [
+                        user.id,
+                        'passkey',
+                        user.credential_id.substring(0, 20),
+                        JSON.stringify(deviceInfo),
+                        isPrimary,
+                        JSON.stringify(metadata)
+                    ]
+                );
+                
+                console.log(`✓ Added passkey for user: ${user.username}`);
+                successCount++;
+                
+            } catch (userErr) {
+                console.error(`✗ Failed to add passkey for user ${user.username}:`, userErr.message);
+                failCount++;
+                failedUsers.push({ username: user.username, error: userErr.message });
+            }
+        }
+        
+        return {
+            success: true,
+            message: 'Backfill completed',
+            usersProcessed: users.length,
+            usersSucceeded: successCount,
+            usersFailed: failCount,
+            failedUsers: failedUsers.length > 0 ? failedUsers : undefined
+        };
+        
+    } catch (error) {
+        console.error('Error during backfill:', error);
+        throw error;
+    }
+}
+
+/**
  * Backfill FaceID auth methods for existing users with face descriptors
  * This adds faceid to user_auth_methods for users who registered before multi-auth was implemented
  */
