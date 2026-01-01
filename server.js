@@ -821,6 +821,14 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
     const { newCounter } = verification.authenticationInfo;
     await db.updatePasskeyCounter(dbCredential.credential_id, newCounter);
     
+    // Update auth method last used timestamp
+    try {
+      await db.updateAuthMethodLastUsed(user.id, 'passkey', dbCredential.credential_id);
+    } catch (authMethodErr) {
+      console.error('Failed to update auth method last used (non-critical):', authMethodErr);
+      // Non-critical error, continue
+    }
+    
     // Delete used challenge
     await db.deleteChallenge(challengeRecord.challenge);
     
