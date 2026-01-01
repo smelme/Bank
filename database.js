@@ -1116,3 +1116,107 @@ export async function disableAuthMethod(userId, methodId) {
     }
 }
 
+/**
+ * Backfill FaceID auth methods for existing users with face descriptors
+ * This adds faceid to user_auth_methods for users who registered before multi-auth was implemented
+ */
+export async function backfillFaceIdAuthMethods() {
+    if (!pool) {
+        console.warn('No database connection - cannot backfill');
+        return { success: false, error: 'No database connection' };
+    }
+
+    try {
+        // Find all users with face descriptors who don't have faceid auth method
+        const usersQuery = `
+            SELECT u.id, u.username, u.email, u.face_descriptor
+            FROM users u
+            WHERE u.face_descriptor IS NOT NULL
+            AND NOT EXISTS (
+                SELECT 1 FROM user_auth_methods uam
+                WHERE uam.user_id = u.id AND uam.method_type = 'faceid'
+            )
+        `;
+        
+        const result = await pool.query(usersQuery);
+        const users = result.rows;
+        
+        console.log(`Found ${users.length} users with face descriptors missing faceid auth method`);
+        
+        if (users.length === 0) {
+            return {
+                success: true,
+                message: 'No users to backfill',
+                usersProcessed: 0,
+                usersSucceeded: 0,
+                usersFailed: 0
+            };
+        }
+        
+        let successCount = 0;
+        let failCount = 0;
+        const failedUsers = [];
+        
+        for (const user of users) {
+            try {
+                const faceDescriptor = user.face_descriptor;
+                const deviceInfo = {
+                    type: 'biometric',
+                    method: 'face_recognition',
+                    registeredAt: new Date().toISOString()
+                };
+                
+                const metadata = {
+                    descriptorLength: Array.isArray(faceDescriptor) ? faceDescriptor.length : 0,
+                    source: 'digital_id_verification',
+                    backfilled: true,
+                    backfilledAt: new Date().toISOString()
+                };
+                
+                // Check if this is the user's first auth method
+                const existingMethodsResult = await pool.query(
+                    'SELECT COUNT(*) as count FROM user_auth_methods WHERE user_id = $1 AND is_enabled = true',
+                    [user.id]
+                );
+                const isPrimary = existingMethodsResult.rows[0].count === '0';
+                
+                // Insert faceid auth method
+                await pool.query(
+                    `INSERT INTO user_auth_methods 
+                    (user_id, method_type, method_identifier, device_info, is_primary, metadata)
+                    VALUES ($1, $2, $3, $4, $5, $6)`,
+                    [
+                        user.id,
+                        'faceid',
+                        'primary-device',
+                        JSON.stringify(deviceInfo),
+                        isPrimary,
+                        JSON.stringify(metadata)
+                    ]
+                );
+                
+                console.log(`✓ Added faceid for user: ${user.username}`);
+                successCount++;
+                
+            } catch (userErr) {
+                console.error(`✗ Failed to add faceid for user ${user.username}:`, userErr.message);
+                failCount++;
+                failedUsers.push({ username: user.username, error: userErr.message });
+            }
+        }
+        
+        return {
+            success: true,
+            message: 'Backfill completed',
+            usersProcessed: users.length,
+            usersSucceeded: successCount,
+            usersFailed: failCount,
+            failedUsers: failedUsers.length > 0 ? failedUsers : undefined
+        };
+        
+    } catch (error) {
+        console.error('Error during backfill:', error);
+        throw error;
+    }
+}
+

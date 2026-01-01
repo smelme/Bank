@@ -1255,6 +1255,30 @@ app.get('/debug/passkeys/:username', async (req, res) => {
   }
 });
 
+// Admin: Backfill FaceID auth methods for existing users
+app.post('/admin/backfill-faceid', async (req, res) => {
+  console.log('=== BACKFILL FACEID AUTH METHODS ===');
+  
+  try {
+    // This is an admin operation - in production, add authentication
+    const results = await db.backfillFaceIdAuthMethods();
+    
+    return res.json({
+      success: true,
+      message: 'FaceID auth methods backfilled',
+      ...results
+    });
+    
+  } catch (error) {
+    console.error('Backfill error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Backfill failed',
+      message: error.message
+    });
+  }
+});
+
 // DEBUG: List all users (in-memory or DB sample)
 app.get('/debug/users', async (req, res) => {
   try {
