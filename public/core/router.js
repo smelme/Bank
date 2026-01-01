@@ -12,7 +12,7 @@ let currentController = null;
 
 const routes = {
   '/': { view: '/views/landing.partial.html', title: 'Tamange Bank', controller: null },
-  '/signin': { view: '/views/signin.partial.html', title: 'Tamange Bank - Sign In', controller: '/pages/signin.js' },
+  '/digitalid-signin': { view: '/views/signin.partial.html', title: 'Tamange Bank - Digital ID Sign In', controller: '/pages/signin.js' },
   '/register': { view: '/views/register.partial.html', title: 'Tamange Bank - Register', controller: '/pages/register.js' },
   '/home': { view: '/views/home.partial.html', title: 'Tamange Bank - Home', controller: '/pages/home.js' },
   '/callback': { view: null, title: 'Tamange Bank - Signing In...', controller: '/pages/callback.js' },
@@ -29,7 +29,7 @@ function matchRoute(pathname) {
   if (routes[path]) return { path, ...routes[path] };
   // Support legacy *.html paths and map them to routes.
   if (path === '/index.html') return { path: '/', ...routes['/'] };
-  if (path === '/signin.html') return { path: '/signin', ...routes['/signin'] };
+  if (path === '/signin.html' || path === '/signin') return { path: '/digitalid-signin', ...routes['/digitalid-signin'] };
   if (path === '/register.html') return { path: '/register', ...routes['/register'] };
   if (path === '/home.html') return { path: '/home', ...routes['/home'] };
   return null;

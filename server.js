@@ -1919,7 +1919,7 @@ app.get('/authorize', (req, res) => {
         }));
         
         // Redirect to Digital ID sign-in page
-        window.location.href = '/signin.html';
+        window.location.href = '/digitalid-signin';
         
       } catch (error) {
         console.error('Digital ID sign in error:', error);
@@ -2127,7 +2127,7 @@ app.get('/callback', (req, res) => {
     return serveSpaShell(req, res);
 });
 
-app.get(['/', '/signin', '/register', '/home'], (req, res) => {
+app.get(['/', '/digitalid-signin', '/register', '/home', '/authorize'], (req, res) => {
     // If a proxy/CDN rewrites routes, this ensures we still serve HTML.
     // Avoid catching requests for files like /styles.css.
     if (path.extname(req.path)) return res.status(404).end();

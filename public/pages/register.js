@@ -391,7 +391,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
             <div class="data-item"><span class="data-label">Username:</span><span class="data-value">${user.username}</span></div>
             <div class="data-item"><span class="data-label">Email:</span><span class="data-value">${user.email}</span></div>
             <div class="data-item"><span class="data-label">Name:</span><span class="data-value">${user.givenName} ${user.familyName}</span></div>
-            <p style="margin-top: 16px;">You can now <a href="/signin">sign in</a> using your passkey.</p>
+            <p style="margin-top: 16px;">You can now <a href="/authorize">sign in</a> using your passkey or Digital ID.</p>
         `;
         
         showStep('step-confirm');

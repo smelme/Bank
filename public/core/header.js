@@ -265,7 +265,7 @@ function updateNavForAuthState() {
   const isAuthenticated = isSignedIn();
   
   // Hide/show auth-related menu items
-  const signInLink = document.querySelector('nav a[href="/signin"]');
+  const signInLink = document.querySelector('nav a[href="/authorize"]');
   const openAccountLink = document.querySelector('nav a[href="/register"]');
   
   if (signInLink) {
