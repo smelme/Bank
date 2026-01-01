@@ -1,4 +1,7 @@
 import crypto from 'crypto';
+import dotenv from 'dotenv';
+dotenv.config();
+
 try {
   if (typeof globalThis.crypto === 'undefined') {
     globalThis.crypto = crypto.webcrypto;

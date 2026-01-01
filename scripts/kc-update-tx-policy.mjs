@@ -52,7 +52,7 @@ async function run() {
   }
   if (!hasIss) {
     target.conditions = target.conditions || [];
-    target.conditions.push({ providerId: 'TokenExchangeCondition', config: { issuer: process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app' } });
+    target.conditions.push({ condition: 'identity-provider', configuration: { 'identityProvider': 'oidc' } });
   }
 
   console.log('Attempting PUT to /policies/{name}');

@@ -35,3 +35,6 @@ console.log(`- Authorization URL: ${ip.config?.authorizationUrl || 'N/A'}`);
 console.log(`- Token URL: ${ip.config?.tokenUrl || 'N/A'}`);
 console.log(`- Client ID: ${ip.config?.clientId || 'N/A'}`);
 console.log(`- Client Secret: ${ip.config?.clientSecret ? '***configured***' : 'NOT SET'}`);
+
+console.log('\nFull configuration:');
+console.log(JSON.stringify(ip.config, null, 2));

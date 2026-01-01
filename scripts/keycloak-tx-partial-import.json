@@ -10,7 +10,9 @@
             "name": "Token Exchange Executor",
             "providerId": "token-exchange-executor",
             "priority": 10,
-            "config": {}
+            "config": {
+              "jwks-url": "https://bank-production-37ea.up.railway.app/.well-known/jwks.json"
+            }
           }
         ]
       }
