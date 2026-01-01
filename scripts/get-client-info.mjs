@@ -16,7 +16,7 @@ const token = tj.access_token;
 
 const base = `${process.env.KEYCLOAK_URL.replace(/\/$/, '')}/admin/realms/${encodeURIComponent(process.env.KEYCLOAK_REALM)}`;
 
-const clientId = process.env.KEYCLOAK_CLIENT_ID || 'orchestrator-service';
+const clientId = process.argv[2] || process.env.KEYCLOAK_CLIENT_ID || 'orchestrator-service';
 console.log('Looking up client by clientId:', clientId);
 const q = await fetch(base + '/clients?clientId=' + encodeURIComponent(clientId), { headers: { Authorization: 'Bearer ' + token } });
 if (!q.ok) { console.error('clients search failed', q.status, await q.text()); process.exit(2); }
