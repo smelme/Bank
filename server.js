@@ -365,6 +365,45 @@ app.get('/v1/users/:userId/auth-methods', async (req, res) => {
 });
 
 /**
+ * GET /v1/users/by-username/:username
+ * Get user information by username (for auth method selection)
+ */
+app.get('/v1/users/by-username/:username', async (req, res) => {
+  console.log('=== GET USER BY USERNAME ===');
+  console.log('Username:', req.params.username);
+  
+  try {
+    const { username } = req.params;
+    
+    if (!username) {
+      return res.status(400).json({ error: 'username is required' });
+    }
+    
+    // Get user by username
+    const user = await db.getUserByUsername(username);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Return basic user info (no sensitive data)
+    return res.json({
+      id: user.id,
+      username: user.username,
+      givenName: user.given_name,
+      familyName: user.family_name
+    });
+    
+  } catch (error) {
+    console.error('Error getting user by username:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
  * POST /v1/passkeys/register/options
  * Generate WebAuthn registration options for passkey enrollment
  */
@@ -1195,19 +1234,259 @@ app.get('/authorize', (req, res) => {
       return res.status(400).send('Only response_type=code is supported');
     }
 
-    // For simplicity, we'll show a simple HTML page that does WebAuthn
-    // In production, you'd want a proper login UI
+    // Enhanced sign-in page with auth method selection
     const html = `
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Passkey Sign In</title>
+  <title>Sign In - Tamange Bank</title>
   <script src="https://unpkg.com/@simplewebauthn/browser@9.0.1/dist/bundle/index.umd.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 400px;
+      margin: 50px auto;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-top: 0;
+      color: #333;
+      font-size: 24px;
+    }
+    .input-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+      color: #666;
+      font-size: 14px;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 16px;
+      box-sizing: border-box;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: background 0.2s;
+    }
+    .btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #0056b3;
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #545b62;
+    }
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .auth-methods {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+    }
+    .auth-method-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .auth-method-btn:hover {
+      background: #f8f9fa;
+      border-color: #007bff;
+    }
+    .auth-method-btn.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .method-icon {
+      font-size: 24px;
+      margin-right: 10px;
+    }
+    .method-info {
+      flex: 1;
+      text-align: left;
+    }
+    .method-name {
+      font-weight: 600;
+      color: #333;
+    }
+    .method-desc {
+      font-size: 12px;
+      color: #666;
+    }
+    .error {
+      color: #dc3545;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
   <script>
-    async function signIn() {
+  <script>
+    let currentUser = null;
+    let authMethods = [];
+
+    async function checkUsername() {
       const username = document.getElementById('username').value;
       if (!username) {
         alert('Please enter username');
+        return;
+      }
+
+      try {
+        // Get user info
+        const userResp = await fetch('/v1/users/by-username/' + encodeURIComponent(username));
+        if (!userResp.ok) {
+          showError('User not found');
+          return;
+        }
+
+        currentUser = await userResp.json();
+        
+        // Get auth methods
+        const methodsResp = await fetch('/v1/users/' + currentUser.id + '/auth-methods');
+        if (!methodsResp.ok) {
+          showError('Could not load authentication methods');
+          return;
+        }
+
+        const data = await methodsResp.json();
+        authMethods = data.methods || [];
+        
+        // Show auth method selection
+        showAuthMethods();
+        
+      } catch (error) {
+        console.error('Error checking username:', error);
+        showError('Error: ' + error.message);
+      }
+    }
+
+    function showAuthMethods() {
+      document.getElementById('username-section').classList.add('hidden');
+      document.getElementById('methods-section').classList.remove('hidden');
+      
+      const container = document.getElementById('auth-methods-container');
+      container.innerHTML = '';
+      
+      // Check for passkey
+      const hasPasskey = authMethods.some(m => m.type === 'passkey');
+      const hasFaceId = authMethods.some(m => m.type === 'faceid');
+      const hasEmailOtp = authMethods.some(m => m.type === 'email_otp');
+      const hasSmsOtp = authMethods.some(m => m.type === 'sms_otp');
+      
+      // Passkey button (primary)
+      if (hasPasskey) {
+        container.innerHTML += \`
+          <button class="auth-method-btn" onclick="signInWithPasskey()">
+            <span class="method-icon">🔐</span>
+            <div class="method-info">
+              <div class="method-name">Passkey</div>
+              <div class="method-desc">Use your device's biometric or PIN</div>
+            </div>
+            <span>→</span>
+          </button>
+        \`;
+      }
+      
+      // FaceID button
+      if (hasFaceId) {
+        container.innerHTML += \`
+          <button class="auth-method-btn" onclick="signInWithFaceId()">
+            <span class="method-icon">😊</span>
+            <div class="method-info">
+              <div class="method-name">Face ID</div>
+              <div class="method-desc">Facial recognition</div>
+            </div>
+            <span>→</span>
+          </button>
+        \`;
+      }
+      
+      // Email OTP button (disabled if not implemented)
+      container.innerHTML += \`
+        <button class="auth-method-btn \${hasEmailOtp ? '' : 'disabled'}" 
+                onclick="\${hasEmailOtp ? 'signInWithEmailOtp()' : 'alert(\\'Email OTP not set up\\')'}" 
+                \${hasEmailOtp ? '' : 'disabled'}>
+          <span class="method-icon">📧</span>
+          <div class="method-info">
+            <div class="method-name">Email OTP</div>
+            <div class="method-desc">One-time code via email</div>
+          </div>
+          <span>\${hasEmailOtp ? '→' : '🔒'}</span>
+        </button>
+      \`;
+      
+      // SMS OTP button (disabled if not implemented)
+      container.innerHTML += \`
+        <button class="auth-method-btn \${hasSmsOtp ? '' : 'disabled'}" 
+                onclick="\${hasSmsOtp ? 'signInWithSmsOtp()' : 'alert(\\'SMS OTP not set up\\')'}" 
+                \${hasSmsOtp ? '' : 'disabled'}>
+          <span class="method-icon">📱</span>
+          <div class="method-info">
+            <div class="method-name">SMS OTP</div>
+            <div class="method-desc">One-time code via text message</div>
+          </div>
+          <span>\${hasSmsOtp ? '→' : '🔒'}</span>
+        </button>
+      \`;
+      
+      // If no auth methods, try passkey anyway (for backwards compatibility)
+      if (authMethods.length === 0) {
+        container.innerHTML = \`
+          <button class="auth-method-btn" onclick="signInWithPasskey()">
+            <span class="method-icon">🔐</span>
+            <div class="method-info">
+              <div class="method-name">Passkey</div>
+              <div class="method-desc">Use your device's biometric or PIN</div>
+            </div>
+            <span>→</span>
+          </button>
+          <p style="color: #666; font-size: 14px; text-align: center; margin-top: 10px;">
+            No authentication methods registered
+          </p>
+        \`;
+      }
+    }
+
+    async function signInWithPasskey() {
+      if (!currentUser) {
+        showError('Please enter username first');
         return;
       }
 
@@ -1216,12 +1495,12 @@ app.get('/authorize', (req, res) => {
         const optionsResp = await fetch('/v1/passkeys/auth/options', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username })
+          body: JSON.stringify({ username: currentUser.username })
         });
 
         if (!optionsResp.ok) {
           const error = await optionsResp.json();
-          alert('Error: ' + error.error);
+          showError('Error: ' + error.error);
           return;
         }
 
@@ -1235,7 +1514,7 @@ app.get('/authorize', (req, res) => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            username, 
+            username: currentUser.username, 
             credential,
             client_id: ${JSON.stringify(client_id)},
             redirect_uri: ${JSON.stringify(redirect_uri)},
@@ -1247,7 +1526,7 @@ app.get('/authorize', (req, res) => {
 
         if (!verifyResp.ok) {
           const error = await verifyResp.json();
-          alert('Authentication failed: ' + error.error);
+          showError('Authentication failed: ' + error.error);
           return;
         }
 
@@ -1261,21 +1540,69 @@ app.get('/authorize', (req, res) => {
           });
           window.location.href = ${JSON.stringify(redirect_uri)} + '?' + params.toString();
         } else {
-          alert('Authentication failed');
+          showError('Authentication failed');
         }
       } catch (error) {
-        console.error('Sign in error:', error);
-        alert('Sign in failed: ' + error.message);
+        console.error('Passkey sign in error:', error);
+        showError('Sign in failed: ' + error.message);
       }
     }
 
-    window.signIn = signIn;
+    async function signInWithFaceId() {
+      showError('Face ID authentication coming soon!');
+      // TODO: Implement face-api.js camera capture and verification
+    }
+
+    async function signInWithEmailOtp() {
+      showError('Email OTP authentication coming soon!');
+      // TODO: Implement email OTP flow
+    }
+
+    async function signInWithSmsOtp() {
+      showError('SMS OTP authentication coming soon!');
+      // TODO: Implement SMS OTP flow
+    }
+
+    function showError(message) {
+      document.getElementById('error-message').textContent = message;
+      document.getElementById('error-message').classList.remove('hidden');
+      setTimeout(() => {
+        document.getElementById('error-message').classList.add('hidden');
+      }, 5000);
+    }
+
+    function goBack() {
+      document.getElementById('username-section').classList.remove('hidden');
+      document.getElementById('methods-section').classList.add('hidden');
+      currentUser = null;
+      authMethods = [];
+    }
   </script>
 </head>
 <body>
-  <h1>Passkey Sign In</h1>
-  <input type="text" id="username" placeholder="Username" required>
-  <button onclick="signIn()">Sign In with Passkey</button>
+  <div class="container">
+    <h1>Sign In - Tamange Bank</h1>
+    
+    <!-- Username Entry Section -->
+    <div id="username-section">
+      <div class="input-group">
+        <label for="username">Username</label>
+        <input type="text" id="username" placeholder="Enter your username" required 
+               onkeypress="if(event.key==='Enter') checkUsername()">
+      </div>
+      <button class="btn btn-primary" onclick="checkUsername()">Continue</button>
+    </div>
+
+    <!-- Auth Methods Selection Section -->
+    <div id="methods-section" class="hidden">
+      <p style="color: #666; margin-bottom: 20px;">Choose how you want to sign in:</p>
+      <div id="auth-methods-container"></div>
+      <button class="btn btn-secondary" onclick="goBack()" style="margin-top: 10px;">← Back</button>
+    </div>
+
+    <!-- Error Message -->
+    <div id="error-message" class="error hidden"></div>
+  </div>
 </body>
 </html>`;
 
