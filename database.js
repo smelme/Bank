@@ -182,6 +182,7 @@ export async function setupTables() {
                 client_id VARCHAR(255) NOT NULL,
                 redirect_uri TEXT,
                 scope TEXT,
+                nonce TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 expires_at TIMESTAMP NOT NULL,
                 user_data JSONB NOT NULL
@@ -598,7 +599,7 @@ export async function deleteChallenge(challenge) {
 /**
  * Store OIDC auth code
  */
-export async function storeAuthCode(code, userId, clientId, redirectUri, scope, userData, expiresInSeconds = 600) {
+export async function storeAuthCode(code, userId, clientId, redirectUri, scope, userData, nonce = null, expiresInSeconds = 600) {
     if (!pool) {
         // In-memory fallback - but this won't work on Railway
         console.warn('Storing auth code in memory - this will not persist on Railway!');
@@ -608,10 +609,10 @@ export async function storeAuthCode(code, userId, clientId, redirectUri, scope, 
     try {
         const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
         await pool.query(`
-            INSERT INTO oidc_auth_codes (code, user_id, client_id, redirect_uri, scope, expires_at, user_data)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
-            ON CONFLICT (code) DO UPDATE SET expires_at = $6
-        `, [code, userId, clientId, redirectUri, scope, expiresAt, JSON.stringify(userData)]);
+            INSERT INTO oidc_auth_codes (code, user_id, client_id, redirect_uri, scope, nonce, expires_at, user_data)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (code) DO UPDATE SET expires_at = $7
+        `, [code, userId, clientId, redirectUri, scope, nonce, expiresAt, JSON.stringify(userData)]);
         return true;
     } catch (error) {
         console.error('Error storing auth code:', error);
@@ -649,6 +650,7 @@ export async function getAuthCode(code) {
             client_id: row.client_id,
             redirect_uri: row.redirect_uri,
             scope: row.scope,
+            nonce: row.nonce,
             expires: row.expires_at
         };
     } catch (error) {

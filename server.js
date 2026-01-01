@@ -767,9 +767,10 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
     const clientId = req.body.client_id || 'tamange-web'; // Default for SPA
     const redirectUri = req.body.redirect_uri;
     const scope = req.body.scope || 'openid profile email';
+    const nonce = req.body.nonce || null; // Get nonce from request
     
-    // Store auth code in database
-    const stored = await db.storeAuthCode(authCode, user.id, clientId, redirectUri, scope, user, 600);
+    // Store auth code in database with nonce
+    const stored = await db.storeAuthCode(authCode, user.id, clientId, redirectUri, scope, user, nonce, 600);
     if (!stored) {
       console.error('Failed to store auth code in database');
       return res.status(500).json({ error: 'Failed to generate authorization code' });
@@ -1002,7 +1003,8 @@ app.get('/authorize', (req, res) => {
             client_id: ${JSON.stringify(client_id)},
             redirect_uri: ${JSON.stringify(redirect_uri)},
             scope: ${JSON.stringify(scope || 'openid profile email')},
-            state: ${JSON.stringify(state || '')}
+            state: ${JSON.stringify(state || '')},
+            nonce: ${JSON.stringify(nonce || '')}
           })
         });
 
@@ -1077,8 +1079,8 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
     const user = codeData.user;
     const issuer = process.env.ORCHESTRATOR_ISS || `https://${req.get('host')}`;
 
-    // ID Token
-    const idToken = await new SignJWT({
+    // ID Token (must include nonce if it was in the original request)
+    const idTokenClaims = {
       sub: user.id,
       preferred_username: user.username,
       email: user.email,
@@ -1087,13 +1089,20 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
       family_name: user.family_name,
       aud: client_id,
       iss: issuer
-    })
+    };
+    
+    // Add nonce if it was provided
+    if (codeData.nonce) {
+      idTokenClaims.nonce = codeData.nonce;
+    }
+    
+    const idToken = await new SignJWT(idTokenClaims)
     .setProtectedHeader({ alg: 'RS256', kid: 'orchestrator-1' })
     .setIssuedAt()
     .setExpirationTime('1h')
     .sign(await loadPrivateKey());
 
-    console.log('Generated ID token with issuer:', issuer, 'audience:', client_id, 'kid: orchestrator-1');
+    console.log('Generated ID token with issuer:', issuer, 'audience:', client_id, 'kid: orchestrator-1', 'nonce:', codeData.nonce ? 'present' : 'not provided');
 
     // Access Token (must include user claims for /userinfo endpoint)
     const accessToken = await new SignJWT({
