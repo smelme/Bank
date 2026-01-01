@@ -887,9 +887,8 @@ app.get('/authorize', (req, res) => {
 <html>
 <head>
   <title>Passkey Sign In</title>
-  <script type="module">
-    import { startAuthentication } from '/node_modules/@simplewebauthn/browser/dist/index.js';
-
+  <script src="https://unpkg.com/@simplewebauthn/browser@9.0.1/dist/bundle/index.umd.min.js"></script>
+  <script>
     async function signIn() {
       const username = document.getElementById('username').value;
       if (!username) {
@@ -914,7 +913,7 @@ app.get('/authorize', (req, res) => {
         const options = await optionsResp.json();
 
         // Start WebAuthn authentication
-        const credential = await startAuthentication(options);
+        const credential = await SimpleWebAuthnBrowser.startAuthentication(options);
 
         // Verify with server
         const verifyResp = await fetch('/v1/passkeys/auth/verify', {
