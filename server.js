@@ -280,6 +280,28 @@ app.post('/v1/users/register', async (req, res) => {
       });
     }
     
+    // Register FaceID as auth method if face descriptor exists
+    if (faceDescriptor && Array.isArray(faceDescriptor) && faceDescriptor.length > 0) {
+      try {
+        await db.addAuthMethod(user.id, 'faceid', 'primary-device', {
+          deviceInfo: {
+            type: 'biometric',
+            method: 'face_recognition',
+            registeredAt: new Date().toISOString()
+          },
+          isPrimary: false, // Passkey is typically primary
+          metadata: {
+            descriptorLength: faceDescriptor.length,
+            source: 'digital_id_verification'
+          }
+        });
+        console.log('Registered FaceID auth method for user:', user.username);
+      } catch (faceAuthErr) {
+        console.error('Failed to register FaceID auth method (non-critical):', faceAuthErr);
+        // Non-critical, continue
+      }
+    }
+    
     // Log registration event
     await db.logAuthEvent({
       userId: user.id,
@@ -1040,17 +1062,22 @@ app.post('/v1/auth/sms-otp/verify', async (req, res) => {
 /**
  * POST /v1/auth/faceid/verify
  * Verify user using facial recognition (face-api.js)
- * This uses the face descriptor from registration
+ * This uses the face descriptor from Digital ID registration
  */
 app.post('/v1/auth/faceid/verify', async (req, res) => {
   console.log('=== FACEID VERIFICATION ===');
   console.log('Request body keys:', Object.keys(req.body));
   
   try {
-    const { userId, username, faceDescriptor } = req.body;
+    const { userId, username, faceDescriptor, client_id, redirect_uri, scope, state, nonce } = req.body;
     
     if ((!userId && !username) || !faceDescriptor) {
       return res.status(400).json({ error: 'userId/username and faceDescriptor are required' });
+    }
+    
+    // Validate face descriptor format
+    if (!Array.isArray(faceDescriptor) || faceDescriptor.length === 0) {
+      return res.status(400).json({ error: 'Invalid faceDescriptor format - must be non-empty array' });
     }
     
     // Get user
@@ -1062,37 +1089,150 @@ app.post('/v1/auth/faceid/verify', async (req, res) => {
     }
     
     if (!user) {
+      await db.logAuthEvent({
+        username: username || userId,
+        eventType: 'FACEID_AUTH',
+        method: 'BIOMETRIC',
+        result: 'FAILURE',
+        reason: 'USER_NOT_FOUND',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
       return res.status(404).json({ error: 'User not found' });
     }
     
-    if (!user.face_descriptor) {
-      return res.status(400).json({ error: 'User has no registered face descriptor' });
+    if (!user.face_descriptor || !Array.isArray(user.face_descriptor)) {
+      await db.logAuthEvent({
+        userId: user.id,
+        username: user.username,
+        eventType: 'FACEID_AUTH',
+        method: 'BIOMETRIC',
+        result: 'FAILURE',
+        reason: 'NO_FACE_DESCRIPTOR_REGISTERED',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      return res.status(400).json({ 
+        verified: false,
+        error: 'User has no registered face descriptor',
+        reason: 'NO_BIOMETRIC_ENROLLED'
+      });
     }
     
-    // TODO: Implement face matching logic using face-api.js
-    // Compare req.body.faceDescriptor with user.face_descriptor
+    // Calculate Euclidean distance between face descriptors
+    // Lower distance = better match. Typical threshold: 0.6 for face-api.js
+    const storedDescriptor = user.face_descriptor;
+    
+    if (faceDescriptor.length !== storedDescriptor.length) {
+      console.error('Face descriptor length mismatch:', {
+        captured: faceDescriptor.length,
+        stored: storedDescriptor.length
+      });
+      return res.status(400).json({ 
+        verified: false,
+        error: 'Face descriptor format mismatch',
+        reason: 'INVALID_DESCRIPTOR'
+      });
+    }
+    
     // Calculate Euclidean distance
-    // Threshold: typically 0.6 for face-api.js
+    let sumSquares = 0;
+    for (let i = 0; i < faceDescriptor.length; i++) {
+      const diff = faceDescriptor[i] - storedDescriptor[i];
+      sumSquares += diff * diff;
+    }
+    const distance = Math.sqrt(sumSquares);
     
-    console.warn('⚠️ FaceID verification not fully implemented - face matching TODO');
-    console.log('Would compare captured descriptor with stored descriptor for user:', user.username);
+    const threshold = 0.6; // Standard threshold for face-api.js
+    const isMatch = distance < threshold;
     
-    // For now, return not implemented
-    return res.status(501).json({ 
-      error: 'FaceID verification not fully implemented',
-      message: 'Face descriptor matching logic required'
+    console.log('Face matching result:', {
+      username: user.username,
+      distance: distance.toFixed(4),
+      threshold,
+      isMatch
     });
     
-    // WHEN IMPLEMENTED:
-    // 1. Calculate distance between descriptors
-    // 2. If match (distance < threshold):
-    //    - Log auth event
-    //    - Update auth method last_used
-    //    - Generate auth code
-    //    - Return { verified: true, authCode, userId, username }
-    // 3. If no match:
-    //    - Log failed auth event
-    //    - Return { verified: false, reason: 'Face does not match' }
+    if (!isMatch) {
+      // Face does not match
+      await db.logAuthEvent({
+        userId: user.id,
+        username: user.username,
+        eventType: 'FACEID_AUTH',
+        method: 'BIOMETRIC',
+        result: 'FAILURE',
+        reason: 'FACE_MISMATCH',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+        metadata: { distance: distance.toFixed(4), threshold }
+      });
+      
+      return res.status(401).json({ 
+        verified: false,
+        error: 'Face does not match',
+        reason: 'BIOMETRIC_MISMATCH'
+      });
+    }
+    
+    // Face matches! Proceed with authentication
+    
+    // Update auth method last used
+    try {
+      await db.updateAuthMethodLastUsed(user.id, 'faceid', 'primary-device');
+    } catch (authMethodErr) {
+      console.error('Failed to update FaceID auth method last used (non-critical):', authMethodErr);
+    }
+    
+    // Log successful authentication
+    await db.logAuthEvent({
+      userId: user.id,
+      username: user.username,
+      eventType: 'FACEID_AUTH',
+      method: 'BIOMETRIC',
+      result: 'SUCCESS',
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+      metadata: { distance: distance.toFixed(4), threshold }
+    });
+    
+    // Generate authorization code for OIDC flow
+    const crypto = await import('crypto');
+    const authCode = crypto.randomBytes(32).toString('hex');
+    const clientIdParam = client_id || 'tamange-web';
+    const redirectUriParam = redirect_uri;
+    const scopeParam = scope || 'openid profile email';
+    const nonceParam = nonce || null;
+    
+    // Store auth code in database
+    const stored = await db.storeAuthCode(
+      authCode, 
+      user.id, 
+      clientIdParam, 
+      redirectUriParam, 
+      scopeParam, 
+      user, 
+      nonceParam, 
+      600
+    );
+    
+    if (!stored) {
+      console.error('Failed to store auth code in database');
+      return res.status(500).json({ error: 'Failed to generate authorization code' });
+    }
+    
+    console.log('FaceID authentication successful for user:', user.username);
+    
+    return res.json({ 
+      verified: true,
+      userId: user.id,
+      username: user.username,
+      authCode,
+      matchQuality: {
+        distance: distance.toFixed(4),
+        threshold,
+        confidence: Math.max(0, Math.min(100, ((threshold - distance) / threshold * 100))).toFixed(1) + '%'
+      }
+    });
     
   } catch (error) {
     console.error('Error verifying FaceID:', error);
@@ -1556,8 +1696,31 @@ app.get('/authorize', (req, res) => {
     }
 
     async function signInWithFaceId() {
-      showError('Face ID authentication coming soon!');
-      // TODO: Implement face-api.js camera capture and verification
+      if (!currentUser) {
+        showError('Please enter username first');
+        return;
+      }
+
+      try {
+        // Redirect to the existing face capture page with auth flow parameters
+        const params = new URLSearchParams({
+          username: currentUser.username,
+          userId: currentUser.id,
+          mode: 'auth',
+          client_id: ${JSON.stringify(client_id)},
+          redirect_uri: ${JSON.stringify(redirect_uri)},
+          scope: ${JSON.stringify(scope || 'openid profile email')},
+          state: ${JSON.stringify(state || '')},
+          nonce: ${JSON.stringify(nonce || '')}
+        });
+        
+        // Navigate to face verification page (you should have this from registration)
+        window.location.href = '/face-verify.html?' + params.toString();
+        
+      } catch (error) {
+        console.error('FaceID sign in error:', error);
+        showError('Failed to start Face ID authentication: ' + error.message);
+      }
     }
 
     async function signInWithEmailOtp() {
