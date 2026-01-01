@@ -172,6 +172,20 @@ export async function setupTables() {
             )
         `);
         
+        // Auth code storage for OIDC flows
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS oidc_auth_codes (
+                code VARCHAR(255) PRIMARY KEY,
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                client_id VARCHAR(255) NOT NULL,
+                redirect_uri TEXT,
+                scope TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                user_data JSONB NOT NULL
+            )
+        `);
+        
         // Create indexes
         await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users(keycloak_user_id);
@@ -183,6 +197,7 @@ export async function setupTables() {
             CREATE INDEX IF NOT EXISTS idx_auth_events_user_id ON auth_events(user_id);
             CREATE INDEX IF NOT EXISTS idx_auth_events_timestamp ON auth_events(timestamp DESC);
             CREATE INDEX IF NOT EXISTS idx_challenges_expires ON webauthn_challenges(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_auth_codes_expires ON oidc_auth_codes(expires_at);
         `);
         
         // === LEGACY TABLES (Keep for now, migrate later) ===
@@ -572,6 +587,80 @@ export async function deleteChallenge(challenge) {
         return true;
     } catch (error) {
         console.error('Error deleting challenge:', error);
+        return false;
+    }
+}
+
+/**
+ * Store OIDC auth code
+ */
+export async function storeAuthCode(code, userId, clientId, redirectUri, scope, userData, expiresInSeconds = 600) {
+    if (!pool) {
+        // In-memory fallback - but this won't work on Railway
+        console.warn('Storing auth code in memory - this will not persist on Railway!');
+        return false;
+    }
+
+    try {
+        const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+        await pool.query(`
+            INSERT INTO oidc_auth_codes (code, user_id, client_id, redirect_uri, scope, expires_at, user_data)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (code) DO UPDATE SET expires_at = $6
+        `, [code, userId, clientId, redirectUri, scope, expiresAt, JSON.stringify(userData)]);
+        return true;
+    } catch (error) {
+        console.error('Error storing auth code:', error);
+        return false;
+    }
+}
+
+/**
+ * Get and validate OIDC auth code
+ */
+export async function getAuthCode(code) {
+    if (!pool) {
+        // In-memory fallback - won't work on Railway
+        return null;
+    }
+
+    try {
+        const result = await pool.query(`
+            SELECT * FROM oidc_auth_codes 
+            WHERE code = $1 AND expires_at > NOW()
+        `, [code]);
+        
+        if (result.rows.length === 0) {
+            return null;
+        }
+        
+        const row = result.rows[0];
+        return {
+            user: JSON.parse(row.user_data),
+            client_id: row.client_id,
+            redirect_uri: row.redirect_uri,
+            scope: row.scope,
+            expires: row.expires_at
+        };
+    } catch (error) {
+        console.error('Error getting auth code:', error);
+        return null;
+    }
+}
+
+/**
+ * Delete OIDC auth code (after use)
+ */
+export async function deleteAuthCode(code) {
+    if (!pool) {
+        return false;
+    }
+
+    try {
+        await pool.query('DELETE FROM oidc_auth_codes WHERE code = $1', [code]);
+        return true;
+    } catch (error) {
+        console.error('Error deleting auth code:', error);
         return false;
     }
 }

@@ -720,19 +720,15 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
     
     // Generate authorization code for OIDC flow
     const authCode = crypto.randomBytes(32).toString('hex');
-    authCodeStore.set(authCode, {
-      user,
-      client_id: req.body.client_id || 'tamange-web', // Default for SPA
-      redirect_uri: req.body.redirect_uri,
-      scope: req.body.scope || 'openid profile email',
-      expires: Date.now() + 600000 // 10 minutes
-    });
+    const clientId = req.body.client_id || 'tamange-web'; // Default for SPA
+    const redirectUri = req.body.redirect_uri;
+    const scope = req.body.scope || 'openid profile email';
     
-    // Clean up expired codes
-    for (const [code, data] of authCodeStore.entries()) {
-      if (data.expires < Date.now()) {
-        authCodeStore.delete(code);
-      }
+    // Store auth code in database
+    const stored = await db.storeAuthCode(authCode, user.id, clientId, redirectUri, scope, user, 600);
+    if (!stored) {
+      console.error('Failed to store auth code in database');
+      return res.status(500).json({ error: 'Failed to generate authorization code' });
     }
     
     // If token exchange is enabled, sign an assertion and exchange with Keycloak
@@ -908,9 +904,6 @@ app.get('/.well-known/openid-configuration', (req, res) => {
 
 // === OIDC Provider Endpoints for Keycloak Integration ===
 
-// In-memory store for authorization codes (code -> { user, client_id, redirect_uri, ... })
-const authCodeStore = new Map();
-
 // OIDC Authorization Endpoint - shows WebAuthn login page
 app.get('/authorize', (req, res) => {
   try {
@@ -1011,9 +1004,11 @@ app.get('/authorize', (req, res) => {
 });
 
 // OIDC Token Endpoint
-app.post('/token', express.urlencoded({ extended: true }), async (req, res) => {
+app.post('/token', express.urlencoded({ extended: true }), express.json(), async (req, res) => {
   try {
     const { grant_type, code, redirect_uri, client_id, client_secret } = req.body;
+
+    console.log('Token request received:', { grant_type, code: code ? code.slice(0, 10) + '...' : null, redirect_uri, client_id });
 
     if (grant_type !== 'authorization_code') {
       return res.status(400).json({ error: 'unsupported_grant_type' });
@@ -1025,12 +1020,14 @@ app.post('/token', express.urlencoded({ extended: true }), async (req, res) => {
     // }
 
     // Get auth code data
-    const codeData = authCodeStore.get(code);
+    const codeData = await db.getAuthCode(code);
     if (!codeData) {
+      console.error('Auth code not found in database:', code.slice(0, 10) + '...');
       return res.status(400).json({ error: 'invalid_grant' });
     }
 
-    authCodeStore.delete(code); // One-time use
+    // Delete auth code (one-time use)
+    await db.deleteAuthCode(code);
 
     // Generate tokens
     const user = codeData.user;
