@@ -268,6 +268,23 @@ export function clearTokens() {
  */
 export async function signOut() {
   const manager = getUserManager();
-  // The id_token_hint will be included automatically via includeIdTokenHint config
-  await manager.signoutRedirect();
+  const user = await manager.getUser();
+  
+  if (!user || !user.id_token) {
+    console.warn('No user or id_token found, clearing local state only');
+    await manager.removeUser();
+    window.location.href = window.location.origin;
+    return;
+  }
+  
+  // Manually construct logout URL with id_token_hint to avoid double-request issue
+  const logoutUrl = new URL('https://keycloak-production-5bd5.up.railway.app/realms/Tamange%20Bank/protocol/openid-connect/logout');
+  logoutUrl.searchParams.set('id_token_hint', user.id_token);
+  logoutUrl.searchParams.set('post_logout_redirect_uri', window.location.origin);
+  
+  // Clear local user state first
+  await manager.removeUser();
+  
+  // Redirect to Keycloak logout
+  window.location.href = logoutUrl.toString();
 }
