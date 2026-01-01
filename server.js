@@ -105,11 +105,15 @@ const JWKS = createRemoteJWKSet(
 async function validateOrchestratorToken(req, res, next) {
   const authHeader = req.headers.authorization;
   
+  console.log('UserInfo endpoint called with Authorization header:', authHeader ? 'present' : 'missing');
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    console.error('Invalid or missing Authorization header');
     return res.status(401).json({ error: 'Missing or invalid authorization header' });
   }
   
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  console.log('Validating token (first 20 chars):', token.substring(0, 20) + '...');
   
   try {
     // Use our JWKS endpoint to verify tokens
@@ -120,6 +124,8 @@ async function validateOrchestratorToken(req, res, next) {
     const { payload } = await jwtVerify(token, orchestratorJWKS, {
       issuer: process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app'
     });
+    
+    console.log('Token validated successfully for user:', payload.sub, payload.preferred_username);
     
     // Attach user info to request
     req.user = {
@@ -1118,6 +1124,7 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
 
 // OIDC UserInfo Endpoint (for identity provider flow - validates orchestrator tokens)
 app.get('/userinfo', validateOrchestratorToken, (req, res) => {
+  console.log('Returning userinfo for user:', req.user.sub);
   res.json({
     sub: req.user.sub,
     preferred_username: req.user.preferred_username,
