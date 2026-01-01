@@ -262,5 +262,11 @@ export function clearTokens() {
  */
 export async function signOut() {
   const manager = getUserManager();
-  await manager.signoutRedirect();
+  const user = await manager.getUser();
+  
+  // Include id_token_hint to skip Keycloak logout confirmation
+  await manager.signoutRedirect({
+    id_token_hint: user?.id_token,
+    post_logout_redirect_uri: window.location.origin
+  });
 }
