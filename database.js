@@ -639,8 +639,13 @@ export async function getAuthCode(code) {
         }
         
         const row = result.rows[0];
+        // Handle both JSONB (already parsed) and JSON string formats
+        const userData = typeof row.user_data === 'string' 
+            ? JSON.parse(row.user_data) 
+            : row.user_data;
+            
         return {
-            user: JSON.parse(row.user_data),
+            user: userData,
             client_id: row.client_id,
             redirect_uri: row.redirect_uri,
             scope: row.scope,
