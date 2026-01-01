@@ -48,6 +48,24 @@ function getWebAuthnOrigin() {
   return 'http://localhost:3001';
 }
 
+// Helper function to determine WebAuthn RP ID (domain)
+function getWebAuthnRpId() {
+  // First check environment variable
+  if (process.env.WEBAUTHN_RP_ID && process.env.WEBAUTHN_RP_ID !== 'localhost') {
+    return process.env.WEBAUTHN_RP_ID;
+  }
+  
+  // Extract domain from origin
+  const origin = getWebAuthnOrigin();
+  try {
+    const url = new URL(origin);
+    return url.hostname;
+  } catch (error) {
+    // Fallback to localhost for development
+    return 'localhost';
+  }
+}
+
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
 });
