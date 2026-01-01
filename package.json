@@ -25,6 +25,7 @@
     "@simplewebauthn/browser": "^13.2.2",
     "@simplewebauthn/server": "^13.2.2",
     "@vladmandic/face-api": "^1.7.15",
+    "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
     "body-parser": "^2.2.1",
     "canvas": "^3.2.0",
