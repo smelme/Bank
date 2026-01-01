@@ -499,6 +499,11 @@ export function isDatabaseAvailable() {
     return pool !== null;
 }
 
+// Get database pool for direct queries
+export function getPool() {
+    return pool;
+}
+
 // Cleanup on shutdown
 export async function closeDatabase() {
     if (pool) {

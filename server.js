@@ -3126,6 +3126,147 @@ app.get('/admin/analytics', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * GET /admin/users - Get list of customer users
+ */
+app.get('/admin/users', authenticateAdmin, async (req, res) => {
+    try {
+        const pool = db.getPool();
+        if (!pool) {
+            return res.status(503).json({ error: 'Database not available' });
+        }
+        
+        const search = req.query.search || '';
+        const verified = req.query.verified; // 'true', 'false', or undefined for all
+        const limit = req.query.limit ? parseInt(req.query.limit) : 100;
+        const offset = req.query.offset ? parseInt(req.query.offset) : 0;
+        
+        // Build query
+        let query = 'SELECT id, username, email, phone, given_name, family_name, id_verified, id_verified_at, enabled, created_at FROM users WHERE 1=1';
+        const params = [];
+        let paramCount = 0;
+        
+        // Search filter
+        if (search) {
+            paramCount++;
+            query += ` AND (username ILIKE $${paramCount} OR email ILIKE $${paramCount} OR given_name ILIKE $${paramCount} OR family_name ILIKE $${paramCount})`;
+            params.push(`%${search}%`);
+        }
+        
+        // Verification filter
+        if (verified !== undefined) {
+            paramCount++;
+            query += ` AND id_verified = $${paramCount}`;
+            params.push(verified === 'true');
+        }
+        
+        // Order and pagination
+        query += ' ORDER BY created_at DESC';
+        paramCount++;
+        query += ` LIMIT $${paramCount}`;
+        params.push(limit);
+        paramCount++;
+        query += ` OFFSET $${paramCount}`;
+        params.push(offset);
+        
+        const result = await pool.query(query, params);
+        
+        // Get total count
+        let countQuery = 'SELECT COUNT(*) FROM users WHERE 1=1';
+        const countParams = [];
+        let countParamCount = 0;
+        
+        if (search) {
+            countParamCount++;
+            countQuery += ` AND (username ILIKE $${countParamCount} OR email ILIKE $${countParamCount} OR given_name ILIKE $${countParamCount} OR family_name ILIKE $${countParamCount})`;
+            countParams.push(`%${search}%`);
+        }
+        
+        if (verified !== undefined) {
+            countParamCount++;
+            countQuery += ` AND id_verified = $${countParamCount}`;
+            countParams.push(verified === 'true');
+        }
+        
+        const countResult = await pool.query(countQuery, countParams);
+        const total = parseInt(countResult.rows[0].count);
+        
+        res.json({
+            success: true,
+            users: result.rows,
+            pagination: {
+                total,
+                limit,
+                offset,
+                hasMore: offset + limit < total
+            }
+        });
+    } catch (error) {
+        console.error('Error getting users:', error);
+        res.status(500).json({ error: 'Failed to get users' });
+    }
+});
+
+/**
+ * GET /admin/users/:userId - Get detailed user information
+ */
+app.get('/admin/users/:userId', authenticateAdmin, async (req, res) => {
+    try {
+        const pool = db.getPool();
+        if (!pool) {
+            return res.status(503).json({ error: 'Database not available' });
+        }
+        
+        const user = await db.getUserById(req.params.userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        // Get user's passkeys
+        const passkeys = await db.getPasskeysByUserId(req.params.userId);
+        
+        // Get user's recent activity (last 50)
+        const activity = await db.getActivity({
+            user_id: req.params.userId,
+            limit: 50
+        });
+        
+        // Get auth method stats for this user
+        const statsQuery = `
+            SELECT 
+                auth_method,
+                COUNT(*) as total,
+                SUM(CASE WHEN success THEN 1 ELSE 0 END) as successful
+            FROM auth_activity
+            WHERE user_id = $1
+            GROUP BY auth_method
+        `;
+        const statsResult = await pool.query(statsQuery, [req.params.userId]);
+        
+        res.json({
+            success: true,
+            user: {
+                ...user,
+                // Remove sensitive data
+                password_hash: undefined,
+                face_descriptor: undefined
+            },
+            passkeys: passkeys.map(pk => ({
+                id: pk.id,
+                credential_id: pk.credential_id,
+                friendly_name: pk.friendly_name,
+                created_at: pk.created_at,
+                last_used_at: pk.last_used_at
+            })),
+            activity: activity,
+            stats: statsResult.rows
+        });
+    } catch (error) {
+        console.error('Error getting user details:', error);
+        res.status(500).json({ error: 'Failed to get user details' });
+    }
+});
+
+/**
  * GET /admin/users/:userId/activity - Get activity for specific user
  */
 app.get('/admin/users/:userId/activity', authenticateAdmin, async (req, res) => {
