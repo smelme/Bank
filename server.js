@@ -1095,9 +1095,14 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
 
     console.log('Generated ID token with issuer:', issuer, 'audience:', client_id, 'kid: orchestrator-1');
 
-    // Access Token (simplified)
+    // Access Token (must include user claims for /userinfo endpoint)
     const accessToken = await new SignJWT({
       sub: user.id,
+      preferred_username: user.username,
+      email: user.email,
+      name: `${user.given_name} ${user.family_name}`,
+      given_name: user.given_name,
+      family_name: user.family_name,
       aud: client_id,
       iss: issuer,
       scope: 'openid profile email'
