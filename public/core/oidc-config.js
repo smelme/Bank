@@ -69,8 +69,12 @@ export function getUserManager() {
     // Check if we returned from logout and need to clear state
     if (sessionStorage.getItem('logout_pending') === 'true') {
       sessionStorage.removeItem('logout_pending');
+      
+      // Clear all authentication state
       userManager.removeUser().then(() => {
-        console.log('Cleared user state after logout redirect');
+        console.log('Cleared OIDC user state after logout redirect');
+        clearTokens();
+        console.log('Cleared all tokens and storage');
         
         // Refresh navigation to show sign-in link again
         import('./header.js').then(header => {
@@ -82,6 +86,8 @@ export function getUserManager() {
         });
       }).catch(err => {
         console.error('Error clearing user state:', err);
+        // Clear tokens anyway even if removeUser fails
+        clearTokens();
       });
     }
     
@@ -253,6 +259,8 @@ export function storeTokens(accessToken, idToken, userInfo) {
  * Clear authentication state
  */
 export function clearTokens() {
+  console.log('Clearing all authentication tokens and state...');
+  
   // Clear tokens from both sessionStorage and localStorage
   sessionStorage.removeItem('oidc_access_token');
   sessionStorage.removeItem('oidc_id_token');
@@ -262,24 +270,47 @@ export function clearTokens() {
     localStorage.removeItem('oidc_id_token');
     localStorage.removeItem('oidc_user_info');
   } catch (e) {
-    // ignore
+    console.warn('Error clearing localStorage tokens:', e);
   }
   
-  // Clear oidc-client-ts storage keys
-  const keysToRemove = [];
+  // Clear oidc-client-ts storage keys from sessionStorage
+  const sessionKeysToRemove = [];
   for (let i = 0; i < sessionStorage.length; i++) {
     const key = sessionStorage.key(i);
     if (key && key.startsWith('oidc.')) {
-      keysToRemove.push(key);
+      sessionKeysToRemove.push(key);
     }
   }
-  keysToRemove.forEach(key => sessionStorage.removeItem(key));
+  sessionKeysToRemove.forEach(key => {
+    console.log('Removing sessionStorage key:', key);
+    sessionStorage.removeItem(key);
+  });
+  
+  // Clear oidc-client-ts storage keys from localStorage
+  try {
+    const localKeysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('oidc.')) {
+        localKeysToRemove.push(key);
+      }
+    }
+    localKeysToRemove.forEach(key => {
+      console.log('Removing localStorage key:', key);
+      localStorage.removeItem(key);
+    });
+  } catch (e) {
+    console.warn('Error clearing localStorage OIDC keys:', e);
+  }
+  
   // Also clear passkey-based session state
   try {
     localStorage.removeItem('passkeyAuth');
   } catch (e) {
-    // ignore
+    console.warn('Error clearing passkeyAuth:', e);
   }
+  
+  console.log('Token clearing complete');
 }
 
 /**
@@ -292,6 +323,7 @@ export async function signOut() {
   if (!user || !user.id_token) {
     console.warn('No user or id_token found, clearing local state only');
     await manager.removeUser();
+    clearTokens();
     window.location.href = window.location.origin;
     return;
   }
