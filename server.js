@@ -649,11 +649,17 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
     }
     
     // Verify authentication response
-    const credentialFromDb = {
-      id: Buffer.from(dbCredential.credential_id, 'base64'),
-      publicKey: Buffer.from(dbCredential.public_key, 'base64'),
-      counter: dbCredential.counter || 0
-    };
+    let credentialFromDb;
+    try {
+      credentialFromDb = {
+        id: Buffer.from(dbCredential.credential_id, 'base64'),
+        publicKey: Buffer.from(dbCredential.public_key, 'base64'),
+        counter: dbCredential.counter || 0
+      };
+    } catch (err) {
+      console.error('Failed to parse credential data from database:', err);
+      return res.status(500).json({ error: 'Invalid credential data format' });
+    }
 
     console.log('Authenticators/DB credential preview for verification:', {
       dbCredential_preview: { credential_id: dbCredential.credential_id ? dbCredential.credential_id.slice(0,12)+'...' : null, user_id: dbCredential.user_id, counter: dbCredential.counter },

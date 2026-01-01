@@ -459,7 +459,7 @@ export async function getUserByUsername(username) {
         return result.rows[0] || null;
     } catch (error) {
         console.error('Error getting user by username:', error);
-        throw error;
+        return null;
     }
 }
 
