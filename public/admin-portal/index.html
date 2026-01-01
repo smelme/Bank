@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Portal - Orchestrator</title>
+  <link rel="stylesheet" href="/admin-portal/admin-styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-screen">
+    <div class="loading-spinner"></div>
+    <p>Loading...</p>
+  </div>
+
+  <!-- Login Page -->
+  <div id="login-page" class="login-page">
+    <div class="login-container">
+      <div class="login-header">
+        <i class="fas fa-shield-alt login-icon"></i>
+        <h1>Orchestrator Admin</h1>
+        <p>Authentication Control Center</p>
+      </div>
+      
+      <form id="login-form" class="login-form">
+        <div class="form-group">
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" required autocomplete="username">
+        </div>
+        
+        <div class="form-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" required autocomplete="current-password">
+        </div>
+        
+        <div id="login-error" class="error-message hidden"></div>
+        
+        <button type="submit" class="btn btn-primary" id="login-btn">
+          <i class="fas fa-sign-in-alt"></i>
+          Sign In
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main App Container -->
+  <div id="app-container" class="app-container hidden">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <i class="fas fa-shield-alt"></i>
+        <span>Orchestrator</span>
+      </div>
+      
+      <nav class="sidebar-nav">
+        <a href="#dashboard" class="nav-item active" data-page="dashboard">
+          <i class="fas fa-chart-line"></i>
+          <span>Dashboard</span>
+        </a>
+        <a href="#rules" class="nav-item" data-page="rules">
+          <i class="fas fa-gavel"></i>
+          <span>Rules</span>
+        </a>
+        <a href="#activity" class="nav-item" data-page="activity">
+          <i class="fas fa-history"></i>
+          <span>Activity Logs</span>
+        </a>
+        <a href="#users" class="nav-item" data-page="users">
+          <i class="fas fa-users"></i>
+          <span>Users</span>
+        </a>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="admin-info">
+          <i class="fas fa-user-circle"></i>
+          <div>
+            <div class="admin-name" id="admin-name">Admin</div>
+            <div class="admin-role" id="admin-role">Administrator</div>
+          </div>
+        </div>
+        <button class="btn btn-sm btn-outline" id="logout-btn">
+          <i class="fas fa-sign-out-alt"></i>
+          Logout
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div id="page-content">
+        <!-- Pages will be loaded here dynamically -->
+      </div>
+    </main>
+  </div>
+
+  <!-- Modals -->
+  <div id="modal-container"></div>
+
+  <script type="module" src="/admin-portal/admin-app.js"></script>
+</body>
+</html>

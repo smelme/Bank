@@ -1513,6 +1513,11 @@ app.get(['/index.html', '/signin.html', '/register.html', '/home.html'], (req, r
 
 app.use(express.static('public'));
 
+// Serve admin portal
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin-portal', 'index.html'));
+});
+
 // Dev-only JWKS endpoint to help Keycloak fetch the Orchestrator public key during local testing
 app.get('/.well-known/jwks.json', (req, res) => {
   try {
