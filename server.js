@@ -1035,7 +1035,7 @@ app.post('/token', express.urlencoded({ extended: true }), async (req, res) => {
       sub: user.id,
       preferred_username: user.username,
       email: user.email,
-      name: `${user.given_name} ${user.given_name}`,
+      name: `${user.given_name} ${user.family_name}`,
       given_name: user.given_name,
       family_name: user.family_name,
       aud: client_id,
