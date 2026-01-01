@@ -29,6 +29,9 @@ import {
     Claim
 } from 'id-verifier';
 
+const app = express();
+const port = process.env.PORT || 3001;
+
 // Helper function to determine WebAuthn origin
 function getWebAuthnOrigin() {
   // First check environment variable
@@ -44,8 +47,6 @@ function getWebAuthnOrigin() {
   // Default to localhost for development
   return 'http://localhost:3001';
 }
-
-const app = express();
 
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
