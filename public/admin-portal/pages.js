@@ -10,6 +10,16 @@ async function loadDashboard() {
     // Fetch analytics data
     const { stats } = await fetchAPI('/admin/analytics');
     
+    // Handle null or missing stats data
+    const safeStats = {
+      total: stats?.total || 0,
+      successful: stats?.successful || 0,
+      failed: stats?.failed || 0,
+      byMethod: stats?.byMethod || [],
+      byCountry: stats?.byCountry || [],
+      recent: stats?.recent || []
+    };
+    
     const pageContent = document.getElementById('page-content');
     pageContent.innerHTML = `
       <div class="page-header">
@@ -25,7 +35,7 @@ async function loadDashboard() {
           </div>
           <div class="stat-content">
             <div class="stat-label">Total Attempts</div>
-            <div class="stat-value">${stats.total.toLocaleString()}</div>
+            <div class="stat-value">${safeStats.total.toLocaleString()}</div>
           </div>
         </div>
         
@@ -35,7 +45,7 @@ async function loadDashboard() {
           </div>
           <div class="stat-content">
             <div class="stat-label">Successful</div>
-            <div class="stat-value">${stats.successful.toLocaleString()}</div>
+            <div class="stat-value">${safeStats.successful.toLocaleString()}</div>
           </div>
         </div>
         
@@ -45,7 +55,7 @@ async function loadDashboard() {
           </div>
           <div class="stat-content">
             <div class="stat-label">Failed</div>
-            <div class="stat-value">${stats.failed.toLocaleString()}</div>
+            <div class="stat-value">${safeStats.failed.toLocaleString()}</div>
           </div>
         </div>
         
@@ -55,7 +65,7 @@ async function loadDashboard() {
           </div>
           <div class="stat-content">
             <div class="stat-label">Success Rate</div>
-            <div class="stat-value">${stats.total > 0 ? Math.round((stats.successful / stats.total) * 100) : 0}%</div>
+            <div class="stat-value">${safeStats.total > 0 ? Math.round((safeStats.successful / safeStats.total) * 100) : 0}%</div>
           </div>
         </div>
       </div>
@@ -68,7 +78,7 @@ async function loadDashboard() {
             <h3 class="card-title">Authentication Methods</h3>
           </div>
           <div class="card-body">
-            ${renderMethodsChart(stats.byMethod)}
+            ${renderMethodsChart(safeStats.byMethod)}
           </div>
         </div>
         
@@ -78,7 +88,7 @@ async function loadDashboard() {
             <h3 class="card-title">Top Countries</h3>
           </div>
           <div class="card-body">
-            ${renderCountriesChart(stats.byCountry)}
+            ${renderCountriesChart(safeStats.byCountry)}
           </div>
         </div>
       </div>
@@ -92,13 +102,30 @@ async function loadDashboard() {
           </a>
         </div>
         <div class="card-body">
-          ${renderRecentActivity(stats.recent)}
+          ${renderRecentActivity(safeStats.recent)}
         </div>
       </div>
     `;
   } catch (error) {
     console.error('Error loading dashboard:', error);
-    throw error;
+    
+    // Show error state
+    const pageContent = document.getElementById('page-content');
+    pageContent.innerHTML = `
+      <div class="page-header">
+        <h1>Dashboard</h1>
+        <p>Overview of authentication activity and system status</p>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div class="empty-state">
+            <i class="fas fa-exclamation-triangle" style="font-size: 48px; color: var(--warning); margin-bottom: 16px;"></i>
+            <p>Error loading dashboard data</p>
+            <p style="color: var(--text-secondary); font-size: 14px;">${error.message}</p>
+          </div>
+        </div>
+      </div>
+    `;
   }
 }
 

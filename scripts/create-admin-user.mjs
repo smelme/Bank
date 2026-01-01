@@ -14,6 +14,13 @@ import bcrypt from 'bcrypt';
 import * as db from '../database.js';
 
 async function createAdminUser() {
+    // Initialize database connection
+    const connected = db.initDatabase();
+    if (!connected) {
+        console.error('❌ Failed to connect to database. Please check DATABASE_URL environment variable.');
+        process.exit(1);
+    }
+    
     const args = process.argv.slice(2);
     
     if (args.length < 3) {
