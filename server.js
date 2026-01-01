@@ -1592,121 +1592,272 @@ app.get('/authorize', (req, res) => {
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign In - Tamange Bank</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/@simplewebauthn/browser@9.0.1/dist/bundle/index.umd.min.js"></script>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      max-width: 400px;
-      margin: 50px auto;
-      padding: 20px;
-      background: #f5f5f5;
-    }
-    .container {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    h1 {
-      margin-top: 0;
-      color: #333;
-      font-size: 24px;
-    }
-    .input-group {
-      margin-bottom: 20px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      color: #666;
-      font-size: 14px;
-    }
-    input {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 16px;
+    * {
+      margin: 0;
+      padding: 0;
       box-sizing: border-box;
     }
+    
+    :root {
+      /* Dark Theme (Default) */
+      --gold-primary: #D4AF37;
+      --gold-secondary: #F5D76E;
+      --gold-light: #FFEAA4;
+      --black-primary: #0A0A0A;
+      --black-secondary: #1A1A1A;
+      --black-light: #2A2A2A;
+      --white: #FFFFFF;
+      --text-primary: #FFFFFF;
+      --text-secondary: #CCCCCC;
+      --bg-primary: #0A0A0A;
+      --bg-secondary: #1A1A1A;
+      --bg-card: #2A2A2A;
+      --border-color: rgba(212, 175, 55, 0.3);
+      --shadow-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .auth-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px var(--shadow-color);
+      padding: 40px;
+      width: 100%;
+      max-width: 440px;
+    }
+    
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    
+    .logo-symbol {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--gold-primary) 0%, var(--gold-secondary) 100%);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
+      flex-shrink: 0;
+    }
+    
+    .logo-symbol::before {
+      content: '';
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--black-primary);
+      border-radius: 50%;
+      box-shadow: inset 0 0 0 3px var(--gold-light);
+    }
+    
+    .logo-text {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(to right, var(--gold-primary), var(--gold-secondary));
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    
+    .subtitle {
+      color: var(--text-secondary);
+      text-align: center;
+      margin-bottom: 32px;
+      font-size: 14px;
+    }
+    
+    .input-group {
+      margin-bottom: 24px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 16px;
+      color: var(--text-primary);
+      transition: all 0.3s;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: var(--gold-primary);
+      box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+    }
+    
+    input::placeholder {
+      color: var(--text-secondary);
+      opacity: 0.5;
+    }
+    
     .btn {
       width: 100%;
-      padding: 12px;
+      padding: 14px;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
       font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      margin-bottom: 10px;
-      transition: background 0.2s;
+      transition: all 0.3s;
+      font-family: 'Inter', sans-serif;
     }
+    
     .btn-primary {
-      background: #007bff;
-      color: white;
+      background: linear-gradient(135deg, var(--gold-primary), var(--gold-secondary));
+      color: var(--black-primary);
     }
+    
     .btn-primary:hover {
-      background: #0056b3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.3);
     }
-    .btn-secondary {
-      background: #6c757d;
-      color: white;
+    
+    .btn-primary:active {
+      transform: translateY(0);
     }
-    .btn-secondary:hover {
-      background: #545b62;
-    }
+    
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      transform: none !important;
     }
+    
     .auth-methods {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid #eee;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
     }
+    
+    .methods-title {
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    
     .auth-method-btn {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px;
-      margin-bottom: 10px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      background: white;
+      padding: 16px;
+      margin-bottom: 12px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
       cursor: pointer;
-      transition: all 0.2s;
-    }
-    .auth-method-btn:hover {
-      background: #f8f9fa;
-      border-color: #007bff;
-    }
-    .auth-method-btn.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-    .method-icon {
-      font-size: 24px;
-      margin-right: 10px;
-    }
-    .method-info {
-      flex: 1;
+      transition: all 0.3s;
+      width: 100%;
       text-align: left;
     }
+    
+    .auth-method-btn:hover:not(.disabled) {
+      background: var(--bg-card);
+      border-color: var(--gold-primary);
+      transform: translateX(4px);
+    }
+    
+    .auth-method-btn.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    
+    .method-icon {
+      font-size: 28px;
+      margin-right: 16px;
+      flex-shrink: 0;
+    }
+    
+    .method-info {
+      flex: 1;
+    }
+    
     .method-name {
       font-weight: 600;
-      color: #333;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+      font-size: 15px;
     }
+    
     .method-desc {
-      font-size: 12px;
-      color: #666;
+      font-size: 13px;
+      color: var(--text-secondary);
     }
+    
+    .method-arrow {
+      color: var(--gold-primary);
+      font-size: 20px;
+      margin-left: 12px;
+    }
+    
     .error {
-      color: #dc3545;
+      background: rgba(220, 53, 69, 0.1);
+      border: 1px solid rgba(220, 53, 69, 0.3);
+      color: #ff6b6b;
+      padding: 12px 16px;
+      border-radius: 8px;
       font-size: 14px;
-      margin-top: 10px;
+      margin-top: 16px;
     }
+    
     .hidden {
       display: none;
+    }
+    
+    .back-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      margin-top: 12px;
+    }
+    
+    .back-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--gold-primary);
+      color: var(--text-primary);
+      transform: none;
     }
   </style>
   <script>
@@ -1771,7 +1922,7 @@ app.get('/authorize', (req, res) => {
               <div class="method-name">Passkey</div>
               <div class="method-desc">Use your device's biometric or PIN</div>
             </div>
-            <span>→</span>
+            <span class="method-arrow">→</span>
           </button>
         \`;
       }
@@ -1785,7 +1936,7 @@ app.get('/authorize', (req, res) => {
               <div class="method-name">Digital ID</div>
               <div class="method-desc">Verify with digital credential + face</div>
             </div>
-            <span>→</span>
+            <span class="method-arrow">→</span>
           </button>
         \`;
       }
@@ -1800,7 +1951,7 @@ app.get('/authorize', (req, res) => {
             <div class="method-name">Email OTP</div>
             <div class="method-desc">One-time code via email</div>
           </div>
-          <span>\${hasEmailOtp ? '→' : '🔒'}</span>
+          <span class="method-arrow">\${hasEmailOtp ? '→' : '🔒'}</span>
         </button>
       \`;
       
@@ -1814,7 +1965,7 @@ app.get('/authorize', (req, res) => {
             <div class="method-name">SMS OTP</div>
             <div class="method-desc">One-time code via text message</div>
           </div>
-          <span>\${hasSmsOtp ? '→' : '🔒'}</span>
+          <span class="method-arrow">\${hasSmsOtp ? '→' : '🔒'}</span>
         </button>
       \`;
       
@@ -1827,9 +1978,9 @@ app.get('/authorize', (req, res) => {
               <div class="method-name">Passkey</div>
               <div class="method-desc">Use your device's biometric or PIN</div>
             </div>
-            <span>→</span>
+            <span class="method-arrow">→</span>
           </button>
-          <p style="color: #666; font-size: 14px; text-align: center; margin-top: 10px;">
+          <p style="color: var(--text-secondary); font-size: 14px; text-align: center; margin-top: 16px;">
             No authentication methods registered
           </p>
         \`;
@@ -1954,24 +2105,33 @@ app.get('/authorize', (req, res) => {
   </script>
 </head>
 <body>
-  <div class="container">
-    <h1>Sign In - Tamange Bank</h1>
+  <div class="auth-container">
+    <!-- Logo -->
+    <div class="logo-container">
+      <div class="logo-symbol"></div>
+      <div class="logo-text">Tamange Bank</div>
+    </div>
     
     <!-- Username Entry Section -->
     <div id="username-section">
+      <h1>Welcome back</h1>
+      <p class="subtitle">Sign in to your account</p>
+      
       <div class="input-group">
         <label for="username">Username</label>
         <input type="text" id="username" placeholder="Enter your username" required 
-               onkeypress="if(event.key==='Enter') checkUsername()">
+               onkeypress="if(event.key==='Enter') checkUsername()" autofocus>
       </div>
       <button class="btn btn-primary" onclick="checkUsername()">Continue</button>
     </div>
 
     <!-- Auth Methods Selection Section -->
     <div id="methods-section" class="hidden">
-      <p style="color: #666; margin-bottom: 20px;">Choose how you want to sign in:</p>
+      <h1>Choose sign in method</h1>
+      <p class="subtitle">Select how you want to authenticate</p>
+      
       <div id="auth-methods-container"></div>
-      <button class="btn btn-secondary" onclick="goBack()" style="margin-top: 10px;">← Back</button>
+      <button class="btn back-btn" onclick="goBack()">← Back to username</button>
     </div>
 
     <!-- Error Message -->
