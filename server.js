@@ -432,6 +432,124 @@ app.get('/v1/users/by-username/:username', async (req, res) => {
 });
 
 /**
+ * GET /v1/auth/available-methods/:username
+ * Get available authentication methods for a user, filtered by rules
+ */
+app.get('/v1/auth/available-methods/:username', async (req, res) => {
+  console.log('=== GET AVAILABLE AUTH METHODS WITH RULES ===');
+  console.log('Username:', req.params.username);
+  
+  try {
+    const { username } = req.params;
+    
+    if (!username) {
+      return res.status(400).json({ error: 'username is required' });
+    }
+    
+    // Get user by username
+    const user = await db.getUserByUsername(username);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    // Get all enabled authentication methods for the user
+    const allAuthMethods = await db.getUserAuthMethods(user.id);
+    
+    // Build auth context from request
+    const authContext = await activityLogger.getAuthContext(req, user);
+    
+    // Evaluate rules to filter allowed methods
+    const rulesResult = await rulesEngine.evaluateRules(authContext);
+    
+    console.log('Rules evaluation result:', rulesResult);
+    
+    // Log the rules evaluation attempt
+    await activityLogger.logAuthActivity({
+      userId: user.id,
+      username: user.username,
+      method: 'rules_evaluation',
+      success: rulesResult.allowed,
+      ipAddress: authContext.ip,
+      userAgent: req.get('User-Agent'),
+      location: authContext.location,
+      metadata: {
+        rulesApplied: rulesResult.rulesApplied,
+        blockReason: rulesResult.blockReason,
+        allowedMethods: rulesResult.allowedMethods
+      }
+    });
+    
+    // If access is blocked, return blocked status
+    if (!rulesResult.allowed) {
+      return res.json({
+        success: true,
+        blocked: true,
+        blockReason: rulesResult.blockReason,
+        methods: [],
+        summary: {
+          total: 0,
+          hasPasskey: false,
+          hasDigitalId: false,
+          hasEmailOtp: false,
+          hasSmsOtp: false,
+          primaryMethod: null
+        }
+      });
+    }
+    
+    // Filter methods based on allowed methods from rules
+    let filteredMethods = allAuthMethods;
+    if (rulesResult.allowedMethods && rulesResult.allowedMethods.length > 0) {
+      // Map rule method names to database method types
+      const methodTypeMap = {
+        'passkey': 'passkey',
+        'digitalid': 'digitalid', 
+        'email_otp': 'email_otp',
+        'sms_otp': 'sms_otp'
+      };
+      
+      const allowedTypes = rulesResult.allowedMethods.map(method => methodTypeMap[method]).filter(Boolean);
+      filteredMethods = allAuthMethods.filter(method => allowedTypes.includes(method.methodType));
+    }
+    
+    console.log(`Rules allowed methods: ${rulesResult.allowedMethods?.join(', ') || 'all'}`);
+    console.log(`Filtered ${allAuthMethods.length} methods down to ${filteredMethods.length}`);
+    
+    // Format the response
+    const methods = filteredMethods.map(method => ({
+      id: method.id,
+      type: method.methodType,
+      identifier: method.methodIdentifier,
+      deviceInfo: method.deviceInfo,
+      isPrimary: method.isPrimary,
+      lastUsedAt: method.lastUsedAt,
+      createdAt: method.createdAt
+    }));
+    
+    return res.json({
+      success: true,
+      blocked: false,
+      methods,
+      summary: {
+        total: methods.length,
+        hasPasskey: methods.some(m => m.type === 'passkey'),
+        hasDigitalId: methods.some(m => m.type === 'digitalid'),
+        hasEmailOtp: methods.some(m => m.type === 'email_otp'),
+        hasSmsOtp: methods.some(m => m.type === 'sms_otp'),
+        primaryMethod: methods.find(m => m.isPrimary)?.type || null
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting available auth methods with rules:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
  * POST /v1/passkeys/register/options
  * Generate WebAuthn registration options for passkey enrollment
  */
@@ -1891,15 +2009,22 @@ app.get('/authorize', (req, res) => {
 
         currentUser = await userResp.json();
         
-        // Get auth methods
-        const methodsResp = await fetch('/v1/users/' + currentUser.id + '/auth-methods');
+        // Get auth methods (now with rules filtering)
+        const methodsResp = await fetch('/v1/auth/available-methods/' + encodeURIComponent(currentUser.username));
         if (!methodsResp.ok) {
           showError('Could not load authentication methods');
           return;
         }
 
-        const data = await methodsResp.json();
-        authMethods = data.methods || [];
+        const methodsData = await methodsResp.json();
+        
+        // Check if access is blocked by rules
+        if (methodsData.blocked) {
+          showBlockedMessage(methodsData.blockReason);
+          return;
+        }
+        
+        authMethods = methodsData.methods || [];
         
         // Show auth method selection
         showAuthMethods();
@@ -2106,9 +2231,19 @@ app.get('/authorize', (req, res) => {
       }, 5000);
     }
 
+    function showBlockedMessage(reason) {
+      document.getElementById('username-section').classList.add('hidden');
+      document.getElementById('methods-section').classList.add('hidden');
+      document.getElementById('blocked-section').classList.remove('hidden');
+      
+      const reasonElement = document.getElementById('block-reason');
+      reasonElement.textContent = reason || 'Access denied by security policy';
+    }
+
     function goBack() {
       document.getElementById('username-section').classList.remove('hidden');
       document.getElementById('methods-section').classList.add('hidden');
+      document.getElementById('blocked-section').classList.add('hidden');
       currentUser = null;
       authMethods = [];
     }
@@ -2142,6 +2277,21 @@ app.get('/authorize', (req, res) => {
       
       <div id="auth-methods-container"></div>
       <button class="btn back-btn" onclick="goBack()">← Back to username</button>
+    </div>
+
+    <!-- Access Blocked Section -->
+    <div id="blocked-section" class="hidden">
+      <h1>Access Restricted</h1>
+      <p class="subtitle">Your sign in attempt has been blocked</p>
+      
+      <div class="error" style="margin-top: 24px; text-align: center;">
+        <div id="block-reason" style="margin-bottom: 16px; font-weight: 500;"></div>
+        <div style="font-size: 14px; opacity: 0.8;">
+          If you believe this is an error, please contact your administrator.
+        </div>
+      </div>
+      
+      <button class="btn back-btn" onclick="goBack()">← Try different username</button>
     </div>
 
     <!-- Error Message -->
