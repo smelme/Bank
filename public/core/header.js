@@ -241,11 +241,28 @@ function wireCtas() {
 }
 
 // Check if user is signed in
-function isSignedIn() {
+async function isSignedIn() {
   // Consider either legacy session token, OIDC tokens (from token-exchange), or passkeyAuth
   try {
     if (sessionStorage.getItem('sessionToken')) return true;
     if (sessionStorage.getItem('oidc_access_token') || localStorage.getItem('oidc_access_token')) return true;
+    
+    // Check if OIDC user exists in storage (oidc-client-ts stores user in sessionStorage)
+    // Look for keys matching pattern: oidc.user:<authority>:<client_id>
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('oidc.user:')) {
+        const userData = sessionStorage.getItem(key);
+        if (userData) {
+          try {
+            const user = JSON.parse(userData);
+            if (user && user.access_token) return true;
+          } catch (e) {
+            // ignore parse errors
+          }
+        }
+      }
+    }
   } catch (e) {
     // ignore
   }
@@ -261,8 +278,8 @@ function isSignedIn() {
 }
 
 // Update navigation based on auth state
-function updateNavForAuthState() {
-  const isAuthenticated = isSignedIn();
+async function updateNavForAuthState() {
+  const isAuthenticated = await isSignedIn();
   
   // Hide/show auth-related menu items
   const signInLink = document.getElementById('signInLink');
@@ -328,8 +345,8 @@ function initLogoNavigation() {
 }
 
 // Export function to update nav state (called after sign in/out)
-export function refreshNavState() {
-  updateNavForAuthState();
+export async function refreshNavState() {
+  await updateNavForAuthState();
 }
 
 // Feature card animation
@@ -378,7 +395,7 @@ export async function spaMount() {
   initFeatureCardAnimation();
   initLogoNavigation();
   initSignInLinks();
-  updateNavForAuthState();
+  await updateNavForAuthState();
 
   // Return cleanup function for SPA teardown
   return () => {
