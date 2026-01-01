@@ -223,9 +223,9 @@ export async function setupTables() {
         
         await pool.query(`
             COMMENT ON COLUMN user_auth_methods.method_type IS 
-            'Authentication method: passkey, email_otp, sms_otp, faceid';
+            'Authentication method: passkey, email_otp, sms_otp, digitalid';
             COMMENT ON COLUMN user_auth_methods.method_identifier IS 
-            'Identifier for the method: credential_id for passkeys, email for email_otp, phone for sms_otp, device_id for faceid';
+            'Identifier for the method: credential_id for passkeys, email for email_otp, phone for sms_otp, primary-device for digitalid';
             COMMENT ON COLUMN user_auth_methods.device_info IS 
             'JSON object containing device details: name, type, os, browser, last_ip';
             COMMENT ON COLUMN user_auth_methods.is_primary IS 
@@ -1220,31 +1220,31 @@ export async function backfillPasskeyAuthMethods() {
 }
 
 /**
- * Backfill FaceID auth methods for existing users with face descriptors
- * This adds faceid to user_auth_methods for users who registered before multi-auth was implemented
+ * Backfill Digital ID auth methods for existing users who registered with Digital ID
+ * This adds digitalid to user_auth_methods for users who registered before multi-auth was implemented
  */
-export async function backfillFaceIdAuthMethods() {
+export async function backfillDigitalIdAuthMethods() {
     if (!pool) {
         console.warn('No database connection - cannot backfill');
         return { success: false, error: 'No database connection' };
     }
 
     try {
-        // Find all users with face descriptors who don't have faceid auth method
+        // Find all users with document_number (Digital ID registration) who don't have digitalid auth method
         const usersQuery = `
-            SELECT u.id, u.username, u.email, u.face_descriptor
+            SELECT u.id, u.username, u.email, u.document_number, u.document_type
             FROM users u
-            WHERE u.face_descriptor IS NOT NULL
+            WHERE u.document_number IS NOT NULL
             AND NOT EXISTS (
                 SELECT 1 FROM user_auth_methods uam
-                WHERE uam.user_id = u.id AND uam.method_type = 'faceid'
+                WHERE uam.user_id = u.id AND uam.method_type = 'digitalid'
             )
         `;
         
         const result = await pool.query(usersQuery);
         const users = result.rows;
         
-        console.log(`Found ${users.length} users with face descriptors missing faceid auth method`);
+        console.log(`Found ${users.length} users with Digital ID registration missing digitalid auth method`);
         
         if (users.length === 0) {
             return {
@@ -1262,16 +1262,16 @@ export async function backfillFaceIdAuthMethods() {
         
         for (const user of users) {
             try {
-                const faceDescriptor = user.face_descriptor;
                 const deviceInfo = {
-                    type: 'biometric',
-                    method: 'face_recognition',
+                    type: 'digital_credential',
+                    method: 'digital_id_verification',
+                    documentType: user.document_type,
                     registeredAt: new Date().toISOString()
                 };
                 
                 const metadata = {
-                    descriptorLength: Array.isArray(faceDescriptor) ? faceDescriptor.length : 0,
-                    source: 'digital_id_verification',
+                    documentNumber: user.document_number,
+                    source: 'digital_id_registration',
                     backfilled: true,
                     backfilledAt: new Date().toISOString()
                 };
@@ -1283,14 +1283,14 @@ export async function backfillFaceIdAuthMethods() {
                 );
                 const isPrimary = existingMethodsResult.rows[0].count === '0';
                 
-                // Insert faceid auth method
+                // Insert digitalid auth method
                 await pool.query(
                     `INSERT INTO user_auth_methods 
                     (user_id, method_type, method_identifier, device_info, is_primary, metadata)
                     VALUES ($1, $2, $3, $4, $5, $6)`,
                     [
                         user.id,
-                        'faceid',
+                        'digitalid',
                         'primary-device',
                         JSON.stringify(deviceInfo),
                         isPrimary,
@@ -1298,11 +1298,11 @@ export async function backfillFaceIdAuthMethods() {
                     ]
                 );
                 
-                console.log(`✓ Added faceid for user: ${user.username}`);
+                console.log(`✓ Added digitalid for user: ${user.username}`);
                 successCount++;
                 
             } catch (userErr) {
-                console.error(`✗ Failed to add faceid for user ${user.username}:`, userErr.message);
+                console.error(`✗ Failed to add digitalid for user ${user.username}:`, userErr.message);
                 failCount++;
                 failedUsers.push({ username: user.username, error: userErr.message });
             }

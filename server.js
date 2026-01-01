@@ -280,24 +280,25 @@ app.post('/v1/users/register', async (req, res) => {
       });
     }
     
-    // Register FaceID as auth method if face descriptor exists
-    if (faceDescriptor && Array.isArray(faceDescriptor) && faceDescriptor.length > 0) {
+    // Register Digital ID as auth method if user registered with Digital ID
+    if (documentNumber) {
       try {
-        await db.addAuthMethod(user.id, 'faceid', 'primary-device', {
+        await db.addAuthMethod(user.id, 'digitalid', 'primary-device', {
           deviceInfo: {
-            type: 'biometric',
-            method: 'face_recognition',
+            type: 'digital_credential',
+            method: 'digital_id_verification',
+            documentType: documentType || 'unknown',
             registeredAt: new Date().toISOString()
           },
           isPrimary: false, // Passkey is typically primary
           metadata: {
-            descriptorLength: faceDescriptor.length,
-            source: 'digital_id_verification'
+            documentNumber,
+            source: 'digital_id_registration'
           }
         });
-        console.log('Registered FaceID auth method for user:', user.username);
-      } catch (faceAuthErr) {
-        console.error('Failed to register FaceID auth method (non-critical):', faceAuthErr);
+        console.log('Registered Digital ID auth method for user:', user.username);
+      } catch (digitalIdAuthErr) {
+        console.error('Failed to register Digital ID auth method (non-critical):', digitalIdAuthErr);
         // Non-critical, continue
       }
     }
@@ -370,7 +371,7 @@ app.get('/v1/users/:userId/auth-methods', async (req, res) => {
       summary: {
         total: methods.length,
         hasPasskey: methods.some(m => m.type === 'passkey'),
-        hasFaceId: methods.some(m => m.type === 'faceid'),
+        hasDigitalId: methods.some(m => m.type === 'digitalid'),
         hasEmailOtp: methods.some(m => m.type === 'email_otp'),
         hasSmsOtp: methods.some(m => m.type === 'sms_otp'),
         primaryMethod: methods.find(m => m.isPrimary)?.type || null
@@ -1279,17 +1280,17 @@ app.post('/admin/backfill-passkeys', async (req, res) => {
   }
 });
 
-// Admin: Backfill FaceID auth methods for existing users
-app.post('/admin/backfill-faceid', async (req, res) => {
-  console.log('=== BACKFILL FACEID AUTH METHODS ===');
+// Admin: Backfill Digital ID auth methods for existing users
+app.post('/admin/backfill-digitalid', async (req, res) => {
+  console.log('=== BACKFILL DIGITAL ID AUTH METHODS ===');
   
   try {
     // This is an admin operation - in production, add authentication
-    const results = await db.backfillFaceIdAuthMethods();
+    const results = await db.backfillDigitalIdAuthMethods();
     
     return res.json({
       success: true,
-      message: 'FaceID auth methods backfilled',
+      message: 'Digital ID auth methods backfilled',
       ...results
     });
     
@@ -1310,13 +1311,13 @@ app.post('/admin/backfill-all', async (req, res) => {
   try {
     // This is an admin operation - in production, add authentication
     const passkeyResults = await db.backfillPasskeyAuthMethods();
-    const faceidResults = await db.backfillFaceIdAuthMethods();
+    const digitalIdResults = await db.backfillDigitalIdAuthMethods();
     
     return res.json({
       success: true,
       message: 'All auth methods backfilled',
       passkeys: passkeyResults,
-      faceid: faceidResults
+      digitalid: digitalIdResults
     });
     
   } catch (error) {
@@ -1649,9 +1650,9 @@ app.get('/authorize', (req, res) => {
       const container = document.getElementById('auth-methods-container');
       container.innerHTML = '';
       
-      // Check for passkey
+      // Check for available auth methods
       const hasPasskey = authMethods.some(m => m.type === 'passkey');
-      const hasFaceId = authMethods.some(m => m.type === 'faceid');
+      const hasDigitalId = authMethods.some(m => m.type === 'digitalid');
       const hasEmailOtp = authMethods.some(m => m.type === 'email_otp');
       const hasSmsOtp = authMethods.some(m => m.type === 'sms_otp');
       
@@ -1669,14 +1670,14 @@ app.get('/authorize', (req, res) => {
         \`;
       }
       
-      // FaceID button
-      if (hasFaceId) {
+      // Digital ID button
+      if (hasDigitalId) {
         container.innerHTML += \`
-          <button class="auth-method-btn" onclick="signInWithFaceId()">
-            <span class="method-icon">😊</span>
+          <button class="auth-method-btn" onclick="signInWithDigitalId()">
+            <span class="method-icon">🪪</span>
             <div class="method-info">
-              <div class="method-name">Face ID</div>
-              <div class="method-desc">Facial recognition</div>
+              <div class="method-name">Digital ID</div>
+              <div class="method-desc">Verify with digital credential + face</div>
             </div>
             <span>→</span>
           </button>
@@ -1793,31 +1794,30 @@ app.get('/authorize', (req, res) => {
       }
     }
 
-    async function signInWithFaceId() {
+    async function signInWithDigitalId() {
       if (!currentUser) {
         showError('Please enter username first');
         return;
       }
 
       try {
-        // Redirect to the existing face capture page with auth flow parameters
-        const params = new URLSearchParams({
+        // Store OIDC parameters in sessionStorage for after Digital ID sign-in completes
+        sessionStorage.setItem('oidc_params', JSON.stringify({
           username: currentUser.username,
           userId: currentUser.id,
-          mode: 'auth',
           client_id: ${JSON.stringify(client_id)},
           redirect_uri: ${JSON.stringify(redirect_uri)},
           scope: ${JSON.stringify(scope || 'openid profile email')},
           state: ${JSON.stringify(state || '')},
           nonce: ${JSON.stringify(nonce || '')}
-        });
+        }));
         
-        // Navigate to face verification page (you should have this from registration)
-        window.location.href = '/face-verify.html?' + params.toString();
+        // Redirect to Digital ID sign-in page
+        window.location.href = '/signin.html';
         
       } catch (error) {
-        console.error('FaceID sign in error:', error);
-        showError('Failed to start Face ID authentication: ' + error.message);
+        console.error('Digital ID sign in error:', error);
+        showError('Failed to start Digital ID authentication: ' + error.message);
       }
     }
 
