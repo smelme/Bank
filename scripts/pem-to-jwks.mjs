@@ -21,6 +21,8 @@ try {
   const key = await importSPKI(pubPem, 'RS256');
   const jwk = await exportJWK(key);
   jwk.kid = jwk.kid || 'orchestrator-1';
+  jwk.use = 'sig'; // Signature use
+  jwk.alg = 'RS256'; // Algorithm
 
   const jwks = { keys: [jwk] };
 
