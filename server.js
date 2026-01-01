@@ -1044,7 +1044,7 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
       aud: client_id,
       iss: issuer
     })
-    .setProtectedHeader({ alg: 'RS256' })
+    .setProtectedHeader({ alg: 'RS256', kid: 'orchestrator-1' })
     .setIssuedAt()
     .setExpirationTime('1h')
     .sign(await loadPrivateKey());
@@ -1056,7 +1056,7 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
       iss: issuer,
       scope: 'openid profile email'
     })
-    .setProtectedHeader({ alg: 'RS256' })
+    .setProtectedHeader({ alg: 'RS256', kid: 'orchestrator-1' })
     .setIssuedAt()
     .setExpirationTime('1h')
     .sign(await loadPrivateKey());
