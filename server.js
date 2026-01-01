@@ -923,10 +923,10 @@ app.get('/authorize', (req, res) => {
           body: JSON.stringify({ 
             username, 
             credential,
-            client_id: '${client_id}',
-            redirect_uri: '${redirect_uri}',
-            scope: '${scope || 'openid profile email'}',
-            state: '${state || ''}'
+            client_id: ${JSON.stringify(client_id)},
+            redirect_uri: ${JSON.stringify(redirect_uri)},
+            scope: ${JSON.stringify(scope || 'openid profile email')},
+            state: ${JSON.stringify(state || '')}
           })
         });
 
@@ -942,9 +942,9 @@ app.get('/authorize', (req, res) => {
           // Success - redirect back with code
           const params = new URLSearchParams({
             code: result.authCode,
-            state: '${state || ''}'
+            state: ${JSON.stringify(state || '')}
           });
-          window.location.href = '${redirect_uri}?${params}';
+          window.location.href = ${JSON.stringify(redirect_uri)} + '?' + params.toString();
         } else {
           alert('Authentication failed');
         }
