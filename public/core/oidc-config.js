@@ -60,36 +60,62 @@ export const oidcConfig = {
 let userManager = null;
 
 /**
+ * Clear all OIDC-related storage
+ */
+function clearAllOIDCStorage() {
+  console.log('Clearing all OIDC storage...');
+  
+  // Clear custom tokens from both storages
+  const customKeys = ['oidc_access_token', 'oidc_id_token', 'oidc_user_info', 'passkeyAuth'];
+  
+  customKeys.forEach(key => {
+    sessionStorage.removeItem(key);
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      // ignore
+    }
+  });
+  
+  // Clear all oidc.* keys from sessionStorage
+  const sessionKeysToRemove = [];
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    if (key && key.startsWith('oidc.')) {
+      sessionKeysToRemove.push(key);
+    }
+  }
+  sessionKeysToRemove.forEach(key => {
+    console.log('Removing sessionStorage key:', key);
+    sessionStorage.removeItem(key);
+  });
+  
+  // Clear all oidc.* keys from localStorage
+  try {
+    const localKeysToRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('oidc.')) {
+        localKeysToRemove.push(key);
+      }
+    }
+    localKeysToRemove.forEach(key => {
+      console.log('Removing localStorage key:', key);
+      localStorage.removeItem(key);
+    });
+  } catch (e) {
+    console.warn('Error clearing localStorage:', e);
+  }
+  
+  console.log('OIDC storage cleared');
+}
+
+/**
  * Get or create the UserManager instance
  */
 export function getUserManager() {
   if (!userManager) {
     userManager = new UserManager(oidcConfig);
-    
-    // Check if we returned from logout and need to clear state
-    if (sessionStorage.getItem('logout_pending') === 'true') {
-      sessionStorage.removeItem('logout_pending');
-      
-      // Clear all authentication state
-      userManager.removeUser().then(() => {
-        console.log('Cleared OIDC user state after logout redirect');
-        clearTokens();
-        console.log('Cleared all tokens and storage');
-        
-        // Refresh navigation to show sign-in link again
-        import('./header.js').then(header => {
-          if (typeof header.refreshNavState === 'function') {
-            header.refreshNavState();
-          }
-        }).catch(err => {
-          console.warn('Could not refresh nav state:', err);
-        });
-      }).catch(err => {
-        console.error('Error clearing user state:', err);
-        // Clear tokens anyway even if removeUser fails
-        clearTokens();
-      });
-    }
     
     // Set up event handlers for automatic token renewal
     userManager.events.addUserLoaded((user) => {
@@ -317,6 +343,7 @@ export function clearTokens() {
  * Sign out the user
  */
 export async function signOut() {
+  console.log('Starting logout process...');
   const manager = getUserManager();
   const user = await manager.getUser();
   
@@ -324,18 +351,29 @@ export async function signOut() {
     console.warn('No user or id_token found, clearing local state only');
     await manager.removeUser();
     clearTokens();
-    window.location.href = window.location.origin;
+    
+    // Refresh navigation
+    import('./header.js').then(header => {
+      if (typeof header.refreshNavState === 'function') {
+        header.refreshNavState();
+      }
+    });
+    
     return;
   }
   
-  // Manually construct logout URL with id_token_hint to avoid double-request issue
+  // Clear ALL authentication state IMMEDIATELY before redirecting
+  console.log('Clearing user state and tokens before Keycloak logout...');
+  await manager.removeUser();
+  clearTokens();
+  
+  console.log('All local state cleared, redirecting to Keycloak logout...');
+  
+  // Manually construct logout URL with id_token_hint
   const logoutUrl = new URL('https://keycloak-production-5bd5.up.railway.app/realms/Tamange%20Bank/protocol/openid-connect/logout');
   logoutUrl.searchParams.set('id_token_hint', user.id_token);
   logoutUrl.searchParams.set('post_logout_redirect_uri', window.location.origin);
   
-  // Store a flag to clear state after redirect
-  sessionStorage.setItem('logout_pending', 'true');
-  
-  // Navigate to Keycloak logout (don't clear state yet - let the redirect happen first)
+  // Navigate to Keycloak logout (state already cleared)
   window.location.href = logoutUrl.toString();
 }
