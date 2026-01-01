@@ -112,17 +112,7 @@ async function validateOrchestratorToken(req, res, next) {
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
   
   try {
-    // Load our own private key and convert to public key for verification
-    const privateKey = await loadPrivateKey();
-    const publicKey = await crypto.subtle.exportKey('jwk', await crypto.subtle.importKey(
-      'jwk',
-      await exportJWK(privateKey),
-      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-      true,
-      ['sign']
-    ));
-    
-    // Actually, let's just use the JWKS endpoint
+    // Use our JWKS endpoint to verify tokens
     const orchestratorJWKS = createRemoteJWKSet(
       new URL('https://bank-production-37ea.up.railway.app/.well-known/jwks.json')
     );
