@@ -312,6 +312,59 @@ app.post('/v1/users/register', async (req, res) => {
 });
 
 /**
+ * GET /v1/users/:userId/auth-methods
+ * Get all enabled authentication methods for a user
+ */
+app.get('/v1/users/:userId/auth-methods', async (req, res) => {
+  console.log('=== GET USER AUTH METHODS ===');
+  console.log('User ID:', req.params.userId);
+  
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
+    
+    // Get all enabled authentication methods
+    const authMethods = await db.getUserAuthMethods(userId);
+    
+    console.log(`Found ${authMethods.length} auth methods for user ${userId}`);
+    
+    // Format the response
+    const methods = authMethods.map(method => ({
+      id: method.id,
+      type: method.methodType,
+      identifier: method.methodIdentifier,
+      deviceInfo: method.deviceInfo,
+      isPrimary: method.isPrimary,
+      lastUsedAt: method.lastUsedAt,
+      createdAt: method.createdAt
+    }));
+    
+    return res.json({
+      success: true,
+      methods,
+      summary: {
+        total: methods.length,
+        hasPasskey: methods.some(m => m.type === 'passkey'),
+        hasFaceId: methods.some(m => m.type === 'faceid'),
+        hasEmailOtp: methods.some(m => m.type === 'email_otp'),
+        hasSmsOtp: methods.some(m => m.type === 'sms_otp'),
+        primaryMethod: methods.find(m => m.isPrimary)?.type || null
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error getting auth methods:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error' 
+    });
+  }
+});
+
+/**
  * POST /v1/passkeys/register/options
  * Generate WebAuthn registration options for passkey enrollment
  */
@@ -794,6 +847,209 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
   } catch (error) {
     console.error('Error verifying authentication:', error);
     return res.status(500).json({ error: 'Failed to verify authentication' });
+  }
+});
+
+// ============================================================================
+// FUTURE AUTHENTICATION METHODS (Stubs for Email OTP, SMS OTP, FaceID)
+// ============================================================================
+
+/**
+ * POST /v1/auth/email-otp/send
+ * Send one-time password via email
+ * TODO: Integrate with email service provider (SendGrid, AWS SES, etc.)
+ */
+app.post('/v1/auth/email-otp/send', async (req, res) => {
+  console.log('=== SEND EMAIL OTP (NOT IMPLEMENTED) ===');
+  console.log('Request body:', req.body);
+  
+  try {
+    const { email, userId } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'email is required' });
+    }
+    
+    // TODO: Generate OTP code (6 digits)
+    // TODO: Store OTP in database with expiration (5 minutes)
+    // TODO: Send email via email service provider
+    // TODO: Register email_otp as auth method if successful
+    
+    console.warn('⚠️ Email OTP not yet implemented - requires email service integration');
+    
+    return res.status(501).json({ 
+      error: 'Email OTP not implemented yet',
+      message: 'Email service integration required (SendGrid, AWS SES, etc.)'
+    });
+    
+  } catch (error) {
+    console.error('Error sending email OTP:', error);
+    return res.status(500).json({ error: 'Failed to send email OTP' });
+  }
+});
+
+/**
+ * POST /v1/auth/email-otp/verify
+ * Verify email OTP code
+ * TODO: Implement OTP verification logic
+ */
+app.post('/v1/auth/email-otp/verify', async (req, res) => {
+  console.log('=== VERIFY EMAIL OTP (NOT IMPLEMENTED) ===');
+  console.log('Request body:', req.body);
+  
+  try {
+    const { email, code, userId } = req.body;
+    
+    if (!email || !code) {
+      return res.status(400).json({ error: 'email and code are required' });
+    }
+    
+    // TODO: Verify OTP code from database
+    // TODO: Check expiration
+    // TODO: Mark OTP as used
+    // TODO: Update auth method last_used_at
+    // TODO: Generate authorization code for OIDC flow
+    
+    console.warn('⚠️ Email OTP verification not yet implemented');
+    
+    return res.status(501).json({ 
+      error: 'Email OTP verification not implemented yet'
+    });
+    
+  } catch (error) {
+    console.error('Error verifying email OTP:', error);
+    return res.status(500).json({ error: 'Failed to verify email OTP' });
+  }
+});
+
+/**
+ * POST /v1/auth/sms-otp/send
+ * Send one-time password via SMS
+ * TODO: Integrate with SMS service provider (Twilio, AWS SNS, etc.)
+ */
+app.post('/v1/auth/sms-otp/send', async (req, res) => {
+  console.log('=== SEND SMS OTP (NOT IMPLEMENTED) ===');
+  console.log('Request body:', req.body);
+  
+  try {
+    const { phone, userId } = req.body;
+    
+    if (!phone) {
+      return res.status(400).json({ error: 'phone is required' });
+    }
+    
+    // TODO: Generate OTP code (6 digits)
+    // TODO: Store OTP in database with expiration (5 minutes)
+    // TODO: Send SMS via SMS service provider
+    // TODO: Register sms_otp as auth method if successful
+    
+    console.warn('⚠️ SMS OTP not yet implemented - requires SMS service integration');
+    
+    return res.status(501).json({ 
+      error: 'SMS OTP not implemented yet',
+      message: 'SMS service integration required (Twilio, AWS SNS, etc.)'
+    });
+    
+  } catch (error) {
+    console.error('Error sending SMS OTP:', error);
+    return res.status(500).json({ error: 'Failed to send SMS OTP' });
+  }
+});
+
+/**
+ * POST /v1/auth/sms-otp/verify
+ * Verify SMS OTP code
+ * TODO: Implement OTP verification logic
+ */
+app.post('/v1/auth/sms-otp/verify', async (req, res) => {
+  console.log('=== VERIFY SMS OTP (NOT IMPLEMENTED) ===');
+  console.log('Request body:', req.body);
+  
+  try {
+    const { phone, code, userId } = req.body;
+    
+    if (!phone || !code) {
+      return res.status(400).json({ error: 'phone and code are required' });
+    }
+    
+    // TODO: Verify OTP code from database
+    // TODO: Check expiration
+    // TODO: Mark OTP as used
+    // TODO: Update auth method last_used_at
+    // TODO: Generate authorization code for OIDC flow
+    
+    console.warn('⚠️ SMS OTP verification not yet implemented');
+    
+    return res.status(501).json({ 
+      error: 'SMS OTP verification not implemented yet'
+    });
+    
+  } catch (error) {
+    console.error('Error verifying SMS OTP:', error);
+    return res.status(500).json({ error: 'Failed to verify SMS OTP' });
+  }
+});
+
+/**
+ * POST /v1/auth/faceid/verify
+ * Verify user using facial recognition (face-api.js)
+ * This uses the face descriptor from registration
+ */
+app.post('/v1/auth/faceid/verify', async (req, res) => {
+  console.log('=== FACEID VERIFICATION ===');
+  console.log('Request body keys:', Object.keys(req.body));
+  
+  try {
+    const { userId, username, faceDescriptor } = req.body;
+    
+    if ((!userId && !username) || !faceDescriptor) {
+      return res.status(400).json({ error: 'userId/username and faceDescriptor are required' });
+    }
+    
+    // Get user
+    let user;
+    if (userId) {
+      user = await db.getUserById(userId);
+    } else {
+      user = await db.getUserByUsername(username);
+    }
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!user.face_descriptor) {
+      return res.status(400).json({ error: 'User has no registered face descriptor' });
+    }
+    
+    // TODO: Implement face matching logic using face-api.js
+    // Compare req.body.faceDescriptor with user.face_descriptor
+    // Calculate Euclidean distance
+    // Threshold: typically 0.6 for face-api.js
+    
+    console.warn('⚠️ FaceID verification not fully implemented - face matching TODO');
+    console.log('Would compare captured descriptor with stored descriptor for user:', user.username);
+    
+    // For now, return not implemented
+    return res.status(501).json({ 
+      error: 'FaceID verification not fully implemented',
+      message: 'Face descriptor matching logic required'
+    });
+    
+    // WHEN IMPLEMENTED:
+    // 1. Calculate distance between descriptors
+    // 2. If match (distance < threshold):
+    //    - Log auth event
+    //    - Update auth method last_used
+    //    - Generate auth code
+    //    - Return { verified: true, authCode, userId, username }
+    // 3. If no match:
+    //    - Log failed auth event
+    //    - Return { verified: false, reason: 'Face does not match' }
+    
+  } catch (error) {
+    console.error('Error verifying FaceID:', error);
+    return res.status(500).json({ error: 'Failed to verify FaceID' });
   }
 });
 

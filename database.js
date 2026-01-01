@@ -203,6 +203,35 @@ export async function setupTables() {
             ADD COLUMN IF NOT EXISTS nonce TEXT;
         `);
         
+        // User authentication methods table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS user_auth_methods (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+                method_type VARCHAR(50) NOT NULL,
+                method_identifier TEXT,
+                device_info JSONB,
+                is_enabled BOOLEAN DEFAULT true,
+                is_primary BOOLEAN DEFAULT false,
+                last_used_at TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                metadata JSONB,
+                CONSTRAINT unique_user_method UNIQUE(user_id, method_type, method_identifier)
+            )
+        `);
+        
+        await pool.query(`
+            COMMENT ON COLUMN user_auth_methods.method_type IS 
+            'Authentication method: passkey, email_otp, sms_otp, faceid';
+            COMMENT ON COLUMN user_auth_methods.method_identifier IS 
+            'Identifier for the method: credential_id for passkeys, email for email_otp, phone for sms_otp, device_id for faceid';
+            COMMENT ON COLUMN user_auth_methods.device_info IS 
+            'JSON object containing device details: name, type, os, browser, last_ip';
+            COMMENT ON COLUMN user_auth_methods.is_primary IS 
+            'Whether this is the user''s primary/preferred authentication method';
+        `);
+        
         // Create indexes
         await pool.query(`
             CREATE INDEX IF NOT EXISTS idx_users_keycloak_id ON users(keycloak_user_id);
@@ -215,6 +244,8 @@ export async function setupTables() {
             CREATE INDEX IF NOT EXISTS idx_auth_events_timestamp ON auth_events(timestamp DESC);
             CREATE INDEX IF NOT EXISTS idx_challenges_expires ON webauthn_challenges(expires_at);
             CREATE INDEX IF NOT EXISTS idx_auth_codes_expires ON oidc_auth_codes(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_user_auth_methods_user_id ON user_auth_methods(user_id);
+            CREATE INDEX IF NOT EXISTS idx_user_auth_methods_type ON user_auth_methods(user_id, method_type) WHERE is_enabled = true;
         `);
         
         // === LEGACY TABLES (Keep for now, migrate later) ===
@@ -745,11 +776,15 @@ export async function storePasskeyCredential(credentialData) {
             revoked_at: null
         };
         inMemoryPasskeys.set(credential.credential_id, credential);
-    persistInMemoryPasskeys();
-    return credential;
+        persistInMemoryPasskeys();
+        return credential;
     }
 
     try {
+        // Start transaction
+        await pool.query('BEGIN');
+        
+        // Store the passkey credential
         const result = await pool.query(
             `INSERT INTO passkey_credentials 
             (user_id, credential_id, public_key, counter, transports, backup_eligible, backup_state, device_type)
@@ -766,12 +801,50 @@ export async function storePasskeyCredential(credentialData) {
                 credentialData.deviceType || null
             ]
         );
-        return result.rows[0];
+        
+        const credential = result.rows[0];
+        
+        // Also create an auth method entry for this passkey
+        const deviceInfo = {
+            type: credentialData.deviceType || 'unknown',
+            transports: credentialData.transports || [],
+            backupEligible: credentialData.backupEligible || false,
+            backupState: credentialData.backupState || false
+        };
+        
+        // Check if this is the user's first auth method (make it primary)
+        const existingMethods = await pool.query(
+            'SELECT COUNT(*) as count FROM user_auth_methods WHERE user_id = $1 AND is_enabled = true',
+            [credentialData.userId]
+        );
+        const isPrimary = existingMethods.rows[0].count === '0';
+        
+        await pool.query(
+            `INSERT INTO user_auth_methods 
+            (user_id, method_type, method_identifier, device_info, is_primary)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (user_id, method_type, method_identifier) 
+            DO UPDATE SET 
+                device_info = EXCLUDED.device_info,
+                updated_at = CURRENT_TIMESTAMP`,
+            [
+                credentialData.userId,
+                'passkey',
+                credentialData.credentialId,
+                JSON.stringify(deviceInfo),
+                isPrimary
+            ]
+        );
+        
+        await pool.query('COMMIT');
+        return credential;
     } catch (error) {
+        await pool.query('ROLLBACK');
         console.error('Error storing passkey credential:', error);
         throw error;
     }
 }
+
 
 /**
  * Get passkey credential by credential ID
@@ -872,3 +945,174 @@ export async function logAuthEvent(eventData) {
         return null;
     }
 }
+
+// ============================================================================
+// AUTHENTICATION METHODS MANAGEMENT
+// ============================================================================
+
+/**
+ * Add or update an authentication method for a user
+ * @param {string} userId - User ID
+ * @param {string} methodType - passkey, email_otp, sms_otp, faceid
+ * @param {string} methodIdentifier - credential_id, email, phone, device_id
+ * @param {object} options - { deviceInfo, isPrimary, metadata }
+ */
+export async function addAuthMethod(userId, methodType, methodIdentifier, options = {}) {
+    if (!pool) {
+        // In-memory fallback
+        console.warn('In-memory auth methods not implemented yet');
+        return null;
+    }
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO user_auth_methods 
+            (user_id, method_type, method_identifier, device_info, is_primary, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (user_id, method_type, method_identifier) 
+            DO UPDATE SET 
+                device_info = EXCLUDED.device_info,
+                is_primary = EXCLUDED.is_primary,
+                metadata = EXCLUDED.metadata,
+                updated_at = CURRENT_TIMESTAMP
+            RETURNING *`,
+            [
+                userId,
+                methodType,
+                methodIdentifier,
+                options.deviceInfo ? JSON.stringify(options.deviceInfo) : null,
+                options.isPrimary || false,
+                options.metadata ? JSON.stringify(options.metadata) : null
+            ]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Error adding auth method:', error);
+        return null;
+    }
+}
+
+/**
+ * Get all enabled authentication methods for a user
+ * @param {string} userId - User ID
+ * @returns {Array} List of authentication methods
+ */
+export async function getUserAuthMethods(userId) {
+    if (!pool) {
+        // In-memory fallback
+        console.warn('In-memory auth methods not implemented yet');
+        return [];
+    }
+
+    try {
+        const result = await pool.query(
+            `SELECT 
+                id,
+                method_type,
+                method_identifier,
+                device_info,
+                is_primary,
+                last_used_at,
+                created_at,
+                metadata
+            FROM user_auth_methods
+            WHERE user_id = $1 AND is_enabled = true
+            ORDER BY is_primary DESC, last_used_at DESC NULLS LAST, created_at DESC`,
+            [userId]
+        );
+        
+        return result.rows.map(row => ({
+            id: row.id,
+            methodType: row.method_type,
+            methodIdentifier: row.method_identifier,
+            deviceInfo: row.device_info,
+            isPrimary: row.is_primary,
+            lastUsedAt: row.last_used_at,
+            createdAt: row.created_at,
+            metadata: row.metadata
+        }));
+    } catch (error) {
+        console.error('Error getting user auth methods:', error);
+        return [];
+    }
+}
+
+/**
+ * Update last used timestamp for an authentication method
+ * @param {string} userId - User ID
+ * @param {string} methodType - Authentication method type
+ * @param {string} methodIdentifier - Method identifier
+ */
+export async function updateAuthMethodLastUsed(userId, methodType, methodIdentifier) {
+    if (!pool) return false;
+
+    try {
+        await pool.query(
+            `UPDATE user_auth_methods 
+            SET last_used_at = CURRENT_TIMESTAMP
+            WHERE user_id = $1 AND method_type = $2 AND method_identifier = $3`,
+            [userId, methodType, methodIdentifier]
+        );
+        return true;
+    } catch (error) {
+        console.error('Error updating auth method last used:', error);
+        return false;
+    }
+}
+
+/**
+ * Set primary authentication method for a user
+ * @param {string} userId - User ID
+ * @param {string} methodId - Auth method ID to set as primary
+ */
+export async function setPrimaryAuthMethod(userId, methodId) {
+    if (!pool) return false;
+
+    try {
+        // Start transaction
+        await pool.query('BEGIN');
+        
+        // Clear all primary flags for this user
+        await pool.query(
+            'UPDATE user_auth_methods SET is_primary = false WHERE user_id = $1',
+            [userId]
+        );
+        
+        // Set the specified method as primary
+        await pool.query(
+            'UPDATE user_auth_methods SET is_primary = true WHERE id = $1 AND user_id = $2',
+            [methodId, userId]
+        );
+        
+        await pool.query('COMMIT');
+        return true;
+    } catch (error) {
+        await pool.query('ROLLBACK');
+        console.error('Error setting primary auth method:', error);
+        return false;
+    }
+}
+
+/**
+ * Disable an authentication method
+ * @param {string} userId - User ID
+ * @param {string} methodId - Auth method ID to disable
+ */
+export async function disableAuthMethod(userId, methodId) {
+    if (!pool) return false;
+
+    try {
+        const result = await pool.query(
+            `UPDATE user_auth_methods 
+            SET is_enabled = false, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1 AND user_id = $2
+            RETURNING *`,
+            [methodId, userId]
+        );
+        return result.rows[0] || null;
+    } catch (error) {
+        console.error('Error disabling auth method:', error);
+        return null;
+    }
+}
+
