@@ -265,14 +265,45 @@ function updateNavForAuthState() {
   const isAuthenticated = isSignedIn();
   
   // Hide/show auth-related menu items
-  const signInLink = document.querySelector('nav a[href="/authorize"]');
+  const signInLink = document.getElementById('signInLink');
+  const mobileSignInLink = document.getElementById('mobileSignInLink');
   const openAccountLink = document.querySelector('nav a[href="/register"]');
   
   if (signInLink) {
     signInLink.parentElement.style.display = isAuthenticated ? 'none' : '';
   }
+  if (mobileSignInLink) {
+    mobileSignInLink.parentElement.style.display = isAuthenticated ? 'none' : '';
+  }
   if (openAccountLink) {
     openAccountLink.parentElement.style.display = isAuthenticated ? 'none' : '';
+  }
+}
+
+// Initialize sign-in link handlers
+async function initSignInLinks() {
+  const signInLink = document.getElementById('signInLink');
+  const mobileSignInLink = document.getElementById('mobileSignInLink');
+  
+  async function handleSignIn(e) {
+    e.preventDefault();
+    try {
+      const oidcConfig = await import('./oidc-config.js');
+      const userManager = oidcConfig.getUserManager();
+      await userManager.signinRedirect({
+        state: { returnUrl: '/home' }
+      });
+    } catch (error) {
+      console.error('Sign in error:', error);
+      alert('Failed to initiate sign in: ' + error.message);
+    }
+  }
+  
+  if (signInLink) {
+    signInLink.addEventListener('click', handleSignIn);
+  }
+  if (mobileSignInLink) {
+    mobileSignInLink.addEventListener('click', handleSignIn);
   }
 }
 
@@ -346,6 +377,7 @@ export async function spaMount() {
   wireCtas();
   initFeatureCardAnimation();
   initLogoNavigation();
+  initSignInLinks();
   updateNavForAuthState();
 
   // Return cleanup function for SPA teardown
