@@ -1359,6 +1359,30 @@ app.get('/debug/users', async (req, res) => {
   }
 });
 
+// DEBUG: Check if user has face descriptor
+app.get('/debug/user/:userId/face-descriptor', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await db.getUserById(userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    return res.json({
+      userId: user.id,
+      username: user.username,
+      hasFaceDescriptor: !!user.face_descriptor,
+      descriptorLength: user.face_descriptor ? user.face_descriptor.length : 0,
+      descriptorType: user.face_descriptor ? typeof user.face_descriptor : 'N/A',
+      isArray: Array.isArray(user.face_descriptor)
+    });
+  } catch (err) {
+    console.error('Debug face descriptor error:', err);
+    return res.status(500).json({ error: 'debug failed', message: err.message });
+  }
+});
+
 // === End Orchestrator API Endpoints ===
 
 
