@@ -29,8 +29,23 @@ import {
     Claim
 } from 'id-verifier';
 
+// Helper function to determine WebAuthn origin
+function getWebAuthnOrigin() {
+  // First check environment variable
+  if (process.env.WEBAUTHN_ORIGIN && process.env.WEBAUTHN_ORIGIN !== 'http://localhost:3001') {
+    return process.env.WEBAUTHN_ORIGIN;
+  }
+  
+  // For Railway/production deployments
+  if (process.env.RAILWAY_STATIC_URL) {
+    return process.env.RAILWAY_STATIC_URL;
+  }
+  
+  // Default to localhost for development
+  return 'http://localhost:3001';
+}
+
 const app = express();
-const port = process.env.PORT || 3001;
 
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
@@ -289,7 +304,7 @@ app.post('/v1/passkeys/register/options', async (req, res) => {
     console.log('Calling generateRegistrationOptions...');
     const options = await generateRegistrationOptions({
       rpName: process.env.WEBAUTHN_RP_NAME || 'Tamange Bank',
-      rpID: process.env.WEBAUTHN_RP_ID || 'localhost',
+      rpID: getWebAuthnRpId(),
       userID: new Uint8Array(Buffer.from(userId, 'utf8')),
       userName: username,
       userDisplayName: `${user.given_name} ${user.family_name}`,
@@ -382,8 +397,8 @@ app.post('/v1/passkeys/register/verify', async (req, res) => {
       verification = await verifyRegistrationResponse({
         response: credential,
         expectedChallenge: challengeRecord.challenge,
-        expectedOrigin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:3001',
-        expectedRPID: process.env.WEBAUTHN_RP_ID || 'localhost',
+        expectedOrigin: getWebAuthnOrigin(),
+        expectedRPID: getWebAuthnRpId(),
       });
       // Debug: shallow-print verification result to help diagnose missing registrationInfo
       try {
@@ -535,7 +550,7 @@ app.post('/v1/passkeys/auth/options', async (req, res) => {
 
     // Generate authentication options
     const options = await generateAuthenticationOptions({
-      rpID: process.env.WEBAUTHN_RP_ID || 'localhost',
+      rpID: getWebAuthnRpId(),
       allowCredentials: credentials.map(cred => ({
         // simplewebauthn expects base64url-encoded id strings here
         id: base64ToBase64Url(cred.credential_id),
@@ -631,8 +646,8 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
       verification = await verifyAuthenticationResponse({
         response: credential,
         expectedChallenge: challengeRecord.challenge,
-        expectedOrigin: process.env.WEBAUTHN_ORIGIN || 'http://localhost:3001',
-        expectedRPID: process.env.WEBAUTHN_RP_ID || 'localhost',
+        expectedOrigin: getWebAuthnOrigin(),
+        expectedRPID: getWebAuthnRpId(),
         credential: credentialFromDb
       });
     } catch (verErr) {
