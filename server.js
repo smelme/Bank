@@ -101,6 +101,54 @@ const JWKS = createRemoteJWKSet(
  * Middleware to validate Keycloak JWT tokens
  * Add this to routes that require authentication
  */
+// Middleware to validate orchestrator's own tokens
+async function validateOrchestratorToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid authorization header' });
+  }
+  
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  try {
+    // Load our own private key and convert to public key for verification
+    const privateKey = await loadPrivateKey();
+    const publicKey = await crypto.subtle.exportKey('jwk', await crypto.subtle.importKey(
+      'jwk',
+      await exportJWK(privateKey),
+      { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+      true,
+      ['sign']
+    ));
+    
+    // Actually, let's just use the JWKS endpoint
+    const orchestratorJWKS = createRemoteJWKSet(
+      new URL('https://bank-production-37ea.up.railway.app/.well-known/jwks.json')
+    );
+    
+    const { payload } = await jwtVerify(token, orchestratorJWKS, {
+      issuer: process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app'
+    });
+    
+    // Attach user info to request
+    req.user = {
+      sub: payload.sub,
+      preferred_username: payload.preferred_username,
+      email: payload.email,
+      email_verified: payload.email_verified || true,
+      name: payload.name,
+      given_name: payload.given_name,
+      family_name: payload.family_name,
+    };
+    
+    next();
+  } catch (error) {
+    console.error('Orchestrator token validation failed:', error.message);
+    return res.status(401).json({ error: 'Invalid or expired token' });
+  }
+}
+
 async function validateKeycloakToken(req, res, next) {
   const authHeader = req.headers.authorization;
   
@@ -1049,6 +1097,8 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
     .setExpirationTime('1h')
     .sign(await loadPrivateKey());
 
+    console.log('Generated ID token with issuer:', issuer, 'audience:', client_id, 'kid: orchestrator-1');
+
     // Access Token (simplified)
     const accessToken = await new SignJWT({
       sub: user.id,
@@ -1060,6 +1110,8 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
     .setIssuedAt()
     .setExpirationTime('1h')
     .sign(await loadPrivateKey());
+
+    console.log('Returning tokens to client_id:', client_id);
 
     res.json({
       access_token: accessToken,
@@ -1074,8 +1126,8 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
   }
 });
 
-// OIDC UserInfo Endpoint
-app.get('/userinfo', validateKeycloakToken, (req, res) => {
+// OIDC UserInfo Endpoint (for identity provider flow - validates orchestrator tokens)
+app.get('/userinfo', validateOrchestratorToken, (req, res) => {
   res.json({
     sub: req.user.sub,
     preferred_username: req.user.preferred_username,
