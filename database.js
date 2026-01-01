@@ -78,6 +78,8 @@ export function initDatabase() {
         return false;
     }
 
+    console.log('Initializing database with URL:', process.env.DATABASE_URL.replace(/:[^:]+@/, ':***@')); // Hide password
+
     pool = new Pool({
         connectionString: process.env.DATABASE_URL,
         ssl: process.env.DATABASE_URL.includes('railway.app') ? {
@@ -377,6 +379,7 @@ export async function closeDatabase() {
  */
 export async function createUser(userData) {
     if (!pool) {
+        console.log('Creating user in MEMORY storage (no database available):', userData.username);
         // In-memory fallback
         const user = {
             id: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -400,6 +403,7 @@ export async function createUser(userData) {
         return user;
     }
 
+    console.log('Creating user in DATABASE:', userData.username);
     try {
         const result = await pool.query(
             `INSERT INTO users 
@@ -426,7 +430,7 @@ export async function createUser(userData) {
         );
         return result.rows[0];
     } catch (error) {
-        console.error('Error creating user:', error);
+        console.error('Error creating user in database:', error);
         throw error;
     }
 }
