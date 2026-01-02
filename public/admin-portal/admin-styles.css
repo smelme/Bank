@@ -607,6 +607,12 @@ tr:hover {
   max-width: 600px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   animation: modalSlideIn 0.2s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-content.large {
+  max-width: 900px;
 }
 
 @keyframes modalSlideIn {

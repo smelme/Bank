@@ -713,17 +713,25 @@ async function viewUserDetails(userId) {
   const { fetchAPI, formatDate, formatRelativeTime, showNotification } = window.adminApp;
 
   try {
-    const user = await fetchAPI(`/admin/users/${userId}`);
-    const activity = await fetchAPI(`/admin/users/${userId}/activity?limit=10`);
+    const response = await fetchAPI(`/admin/users/${userId}`);
+    const activityResponse = await fetchAPI(`/admin/users/${userId}/activity?limit=10`);
+    
+    const userData = response.user;
+    const activity = activityResponse.activity || [];
+    const passkeys = response.passkeys || [];
+    const authMethods = response.user?.auth_methods || [];
 
     // Create modal
     const modal = document.createElement('div');
-    modal.className = 'modal';
+    modal.className = 'modal-overlay';
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.remove();
+    };
     modal.innerHTML = `
       <div class="modal-content large">
         <div class="modal-header">
-          <h3>User Details: ${user.username}</h3>
-          <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+          <h3>User Details: ${userData.username}</h3>
+          <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
         </div>
         <div class="modal-body">
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
@@ -731,17 +739,17 @@ async function viewUserDetails(userId) {
             <div>
               <h4>Basic Information</h4>
               <div style="display: flex; flex-direction: column; gap: 12px;">
-                <div><strong>Username:</strong> ${user.username}</div>
-                <div><strong>Email:</strong> ${user.email || 'Not provided'}</div>
-                <div><strong>Name:</strong> ${user.given_name && user.family_name ? `${user.given_name} ${user.family_name}` : 'Not provided'}</div>
+                <div><strong>Username:</strong> ${userData.username}</div>
+                <div><strong>Email:</strong> ${userData.email || 'Not provided'}</div>
+                <div><strong>Name:</strong> ${userData.given_name && userData.family_name ? `${userData.given_name} ${userData.family_name}` : 'Not provided'}</div>
                 <div><strong>Status:</strong>
-                  ${user.verified ?
+                  ${userData.id_verified ?
                     '<span class="badge badge-success">Verified</span>' :
                     '<span class="badge badge-warning">Unverified</span>'
                   }
                 </div>
-                <div><strong>Created:</strong> ${formatDate(user.created_at)}</div>
-                <div><strong>Last Login:</strong> ${user.last_login ? formatRelativeTime(user.last_login) : 'Never'}</div>
+                <div><strong>Created:</strong> ${formatDate(userData.created_at)}</div>
+                <div><strong>Last Login:</strong> ${userData.last_login_at ? formatRelativeTime(userData.last_login_at) : 'Never'}</div>
               </div>
             </div>
 
@@ -749,15 +757,29 @@ async function viewUserDetails(userId) {
             <div>
               <h4>Authentication Methods</h4>
               <div style="display: flex; flex-direction: column; gap: 8px;">
-                ${user.auth_methods && user.auth_methods.length > 0 ?
-                  user.auth_methods.map(method => `
+                ${passkeys.length > 0 ? `
+                  <div style="margin-bottom: 12px;">
+                    <strong>Passkeys (${passkeys.length})</strong>
+                    ${passkeys.map(pk => `
+                      <div style="display: flex; align-items: center; gap: 8px; padding: 8px; margin-top: 4px; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <i class="fas fa-key"></i>
+                        <span>${pk.friendly_name || 'Unnamed Passkey'}</span>
+                        <small style="margin-left: auto; color: var(--text-muted);">
+                          ${pk.last_used_at ? 'Used ' + formatRelativeTime(pk.last_used_at) : 'Never used'}
+                        </small>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+                ${authMethods.length > 0 ?
+                  authMethods.map(method => `
                     <div style="display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px;">
                       <i class="fas ${getMethodIcon(method.method_type)}"></i>
                       <span style="text-transform: capitalize;">${method.method_type.replace('_', ' ')}</span>
                       ${method.is_primary ? '<span class="badge badge-primary">Primary</span>' : ''}
                     </div>
                   `).join('') :
-                  '<p>No authentication methods registered</p>'
+                  (passkeys.length === 0 ? '<p>No authentication methods registered</p>' : '')
                 }
               </div>
             </div>
@@ -788,7 +810,7 @@ async function viewUserDetails(userId) {
                           }
                         </td>
                         <td><code>${act.ip_address}</code></td>
-                        <td>${formatRelativeTime(act.created_at)}</td>
+                        <td>${formatRelativeTime(act.timestamp)}</td>
                       </tr>
                     `).join('')}
                   </tbody>
