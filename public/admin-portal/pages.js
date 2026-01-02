@@ -1089,13 +1089,15 @@ function showRuleModal(rule = null) {
                     <div class="form-row">
                       <div class="form-group">
                         <label>Property</label>
-                        <select name="conditions[${index}][property]">
+                        <select name="conditions[${index}][property]" onchange="onConditionPropertyChange(this, ${index})">
                           <option value="ip_address" ${condition.property === 'ip_address' ? 'selected' : ''}>IP Address</option>
                           <option value="user_agent" ${condition.property === 'user_agent' ? 'selected' : ''}>User Agent</option>
                           <option value="auth_method" ${condition.property === 'auth_method' ? 'selected' : ''}>Auth Method</option>
                           <option value="country" ${condition.property === 'country' ? 'selected' : ''}>Country</option>
                           <option value="time_of_day" ${condition.property === 'time_of_day' ? 'selected' : ''}>Time of Day</option>
                           <option value="user_verified" ${condition.property === 'user_verified' ? 'selected' : ''}>User Verified</option>
+                          <option value="ip_multi_account" ${condition.property === 'ip_multi_account' ? 'selected' : ''}>IP Multi-Account Usage</option>
+                          <option value="user_country_jump" ${condition.property === 'user_country_jump' ? 'selected' : ''}>User Country Jump</option>
                         </select>
                       </div>
                       <div class="form-group">
@@ -1110,10 +1112,12 @@ function showRuleModal(rule = null) {
                         </select>
                       </div>
                     </div>
-                    <div class="form-group">
-                      <label>Value</label>
-                      <input type="text" name="conditions[${index}][value]"
-                             value="${condition.value || ''}" placeholder="Enter value or comma-separated list">
+                    <div class="condition-value-container">
+                      <div class="form-group">
+                        <label>Value</label>
+                        <input type="text" name="conditions[${index}][value]"
+                               value="${condition.value || ''}" placeholder="Enter value or comma-separated list">
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1136,6 +1140,8 @@ function showRuleModal(rule = null) {
                           <option value="country">Country</option>
                           <option value="time_of_day">Time of Day</option>
                           <option value="user_verified">User Verified</option>
+                          <option value="ip_multi_account">IP Multi-Account Usage</option>
+                          <option value="user_country_jump">User Country Jump</option>
                         </select>
                       </div>
                       <div class="form-group">
@@ -1294,13 +1300,15 @@ function addCondition() {
         <div class="form-row">
           <div class="form-group">
             <label>Property</label>
-            <select name="conditions[${index}][property]">
+            <select name="conditions[${index}][property]" onchange="onConditionPropertyChange(this, ${index})">
               <option value="ip_address">IP Address</option>
               <option value="user_agent">User Agent</option>
               <option value="auth_method">Auth Method</option>
               <option value="country">Country</option>
               <option value="time_of_day">Time of Day</option>
               <option value="user_verified">User Verified</option>
+              <option value="ip_multi_account">IP Multi-Account Usage</option>
+              <option value="user_country_jump">User Country Jump</option>
             </select>
           </div>
           <div class="form-group">
@@ -1315,9 +1323,11 @@ function addCondition() {
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label>Value</label>
-          <input type="text" name="conditions[${index}][value]" placeholder="Enter value or comma-separated list">
+        <div class="condition-value-container">
+          <div class="form-group">
+            <label>Value</label>
+            <input type="text" name="conditions[${index}][value]" placeholder="Enter value or comma-separated list">
+          </div>
         </div>
       </div>
     </div>
@@ -1476,10 +1486,27 @@ async function handleRuleSubmit(event, ruleId) {
     const property = formData.get(`conditions[${conditionIndex}][property]`);
     if (!property) break;
 
+    let value;
+    
+    // Handle structured values for special condition types
+    if (property === 'ip_multi_account') {
+      value = {
+        accountThreshold: parseInt(formData.get(`conditions[${conditionIndex}][value][accountThreshold]`)) || 3,
+        timeWindowMinutes: parseInt(formData.get(`conditions[${conditionIndex}][value][timeWindowMinutes]`)) || 10
+      };
+    } else if (property === 'user_country_jump') {
+      value = {
+        timeWindowMinutes: parseInt(formData.get(`conditions[${conditionIndex}][value][timeWindowMinutes]`)) || 30
+      };
+    } else {
+      // Simple value for other conditions
+      value = formData.get(`conditions[${conditionIndex}][value]`);
+    }
+
     conditions.push({
       property,
       operator: formData.get(`conditions[${conditionIndex}][operator]`),
-      value: formData.get(`conditions[${conditionIndex}][value]`)
+      value
     });
     conditionIndex++;
   }
@@ -1713,6 +1740,71 @@ function displayTestResults(result) {
 // Export functions to window
 window.loadDashboard = loadDashboard;
 window.loadActivity = loadActivity;
+function onConditionPropertyChange(selectElement, conditionIndex) {
+    const property = selectElement.value;
+    const conditionItem = selectElement.closest('.condition-item');
+    const operatorSelect = conditionItem.querySelector('select[name*="[operator]"]');
+    const valueContainer = conditionItem.querySelector('.condition-value-container');
+    
+    // Update available operators based on property
+    let operators = [];
+    let valueInput = '';
+    
+    switch (property) {
+        case 'ip_multi_account':
+            operators = [{ value: 'exceeds_threshold', label: 'Exceeds Threshold' }];
+            valueInput = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Account Threshold</label>
+                        <input type="number" name="conditions[${conditionIndex}][value][accountThreshold]" 
+                               value="3" min="2" placeholder="Min accounts">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Window (minutes)</label>
+                        <input type="number" name="conditions[${conditionIndex}][value][timeWindowMinutes]" 
+                               value="10" min="1" placeholder="Minutes">
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'user_country_jump':
+            operators = [{ value: 'detected', label: 'Detected' }];
+            valueInput = `
+                <div class="form-group">
+                    <label>Time Window (minutes)</label>
+                    <input type="number" name="conditions[${conditionIndex}][value][timeWindowMinutes]" 
+                           value="30" min="1" placeholder="Minutes">
+                </div>
+            `;
+            break;
+            
+        default:
+            operators = [
+                { value: 'equals', label: 'Equals' },
+                { value: 'not_equals', label: 'Not Equals' },
+                { value: 'contains', label: 'Contains' },
+                { value: 'not_contains', label: 'Not Contains' },
+                { value: 'in_list', label: 'In List' },
+                { value: 'not_in_list', label: 'Not In List' }
+            ];
+            valueInput = `<div class="form-group">
+                <label>Value</label>
+                <input type="text" name="conditions[${conditionIndex}][value]" placeholder="Enter value or comma-separated list">
+            </div>`;
+            break;
+    }
+    
+    // Update operator options
+    operatorSelect.innerHTML = operators.map(op => 
+        `<option value="${op.value}">${op.label}</option>`
+    ).join('');
+    
+    // Update value input
+    valueContainer.innerHTML = valueInput;
+}
+
 window.loadUsers = loadUsers;
 window.loadRules = loadRules;
 window.viewUserDetails = viewUserDetails;
@@ -1727,3 +1819,4 @@ window.removeCondition = removeCondition;
 window.addAction = addAction;
 window.removeAction = removeAction;
 window.onActionTypeChange = onActionTypeChange;
+window.onConditionPropertyChange = onConditionPropertyChange;

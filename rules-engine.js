@@ -56,7 +56,7 @@ export async function evaluateRules(context) {
         // Evaluate each rule in priority order
         for (const rule of rules) {
             console.log('[RULES] Evaluating rule:', rule.name, 'with conditions:', rule.conditions);
-            const ruleMatches = evaluateConditions(rule.conditions, context);
+            const ruleMatches = await evaluateConditions(rule.conditions, context);
             console.log('[RULES] Rule', rule.name, 'matches:', ruleMatches);
             
             if (ruleMatches) {
@@ -103,7 +103,7 @@ export async function evaluateRules(context) {
  * @param {Object} context - Authentication context
  * @returns {boolean} Whether conditions are met
  */
-function evaluateConditions(conditions, context) {
+async function evaluateConditions(conditions, context) {
     if (!conditions || typeof conditions !== 'object') {
         return false;
     }
@@ -115,9 +115,9 @@ function evaluateConditions(conditions, context) {
     }
     
     if (operator === 'AND') {
-        return rules.every(rule => evaluateSingleCondition(rule, context));
+        return (await Promise.all(rules.map(rule => evaluateSingleCondition(rule, context)))).every(result => result);
     } else if (operator === 'OR') {
-        return rules.some(rule => evaluateSingleCondition(rule, context));
+        return (await Promise.all(rules.map(rule => evaluateSingleCondition(rule, context)))).some(result => result);
     }
     
     return false;
@@ -129,7 +129,7 @@ function evaluateConditions(conditions, context) {
  * @param {Object} context - Authentication context
  * @returns {boolean} Whether condition is met
  */
-function evaluateSingleCondition(condition, context) {
+async function evaluateSingleCondition(condition, context) {
     const { field, property, operator, value } = condition;
     let fieldName = field || property; // Support both field and property for compatibility
     
@@ -189,6 +189,12 @@ function evaluateSingleCondition(condition, context) {
             
         case 'country_not_in':
             return !Array.isArray(value) || !value.includes(context.geo_country);
+            
+        case 'ip_multi_account':
+            return await checkIPMultiAccount(context.ip_address, value);
+            
+        case 'user_country_jump':
+            return await checkUserCountryJump(context.username, value);
             
         default:
             console.warn(`Unknown operator: ${operator}`);
@@ -355,3 +361,82 @@ function applyActions(actions, result, context) {
  *   }
  * }
  */
+
+/**
+ * Check if an IP address has been used by multiple accounts within a time window
+ * @param {string} ipAddress - IP address to check
+ * @param {Object} config - Configuration with threshold and timeWindow
+ * @param {number} config.accountThreshold - Minimum number of different accounts
+ * @param {number} config.timeWindowMinutes - Time window in minutes
+ * @returns {boolean} Whether the condition is met
+ */
+async function checkIPMultiAccount(ipAddress, config) {
+    if (!ipAddress || !config || typeof config !== 'object') {
+        return false;
+    }
+    
+    const { accountThreshold = 3, timeWindowMinutes = 10 } = config;
+    
+    try {
+        const timeWindowMs = timeWindowMinutes * 60 * 1000;
+        const since = new Date(Date.now() - timeWindowMs);
+        
+        // Count distinct usernames from this IP within the time window
+        const result = await db.pool.query(
+            `SELECT COUNT(DISTINCT username) as account_count 
+             FROM auth_activity 
+             WHERE ip_address = $1 
+             AND timestamp >= $2 
+             AND success = true`,
+            [ipAddress, since]
+        );
+        
+        const accountCount = parseInt(result.rows[0].account_count);
+        console.log(`[RULES] IP ${ipAddress} used by ${accountCount} accounts in last ${timeWindowMinutes} minutes`);
+        
+        return accountCount >= accountThreshold;
+    } catch (error) {
+        console.error('Error checking IP multi-account:', error);
+        return false;
+    }
+}
+
+/**
+ * Check if a user has been active from different countries within a time window
+ * @param {string} username - Username to check
+ * @param {Object} config - Configuration with timeWindow
+ * @param {number} config.timeWindowMinutes - Time window in minutes
+ * @returns {boolean} Whether the condition is met (user jumped countries)
+ */
+async function checkUserCountryJump(username, config) {
+    if (!username || !config || typeof config !== 'object') {
+        return false;
+    }
+    
+    const { timeWindowMinutes = 30 } = config;
+    
+    try {
+        const timeWindowMs = timeWindowMinutes * 60 * 1000;
+        const since = new Date(Date.now() - timeWindowMs);
+        
+        // Get distinct countries for this user within the time window
+        const result = await db.pool.query(
+            `SELECT DISTINCT geo_country 
+             FROM auth_activity 
+             WHERE username = $1 
+             AND timestamp >= $2 
+             AND success = true 
+             AND geo_country IS NOT NULL`,
+            [username, since]
+        );
+        
+        const countries = result.rows.map(row => row.geo_country);
+        console.log(`[RULES] User ${username} active in countries: ${countries.join(', ')} in last ${timeWindowMinutes} minutes`);
+        
+        // If user has been active in more than one country, it's a jump
+        return countries.length > 1;
+    } catch (error) {
+        console.error('Error checking user country jump:', error);
+        return false;
+    }
+}
