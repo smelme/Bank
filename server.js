@@ -164,9 +164,16 @@ async function validateKeycloakToken(req, res, next) {
   
   try {
     const { payload } = await jwtVerify(token, JWKS, {
-      issuer: KEYCLOAK_REALM_URL,
-      audience: 'tamange-web' // Must match your client ID
+      issuer: KEYCLOAK_REALM_URL
+      // Remove strict audience check - we'll validate manually
     });
+    
+    // Manually validate audience (can be string or array)
+    const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
+    if (!audiences.includes('tamange-web')) {
+      console.log('Token validation failed: unexpected "aud" claim value. Expected: tamange-web, Got:', payload.aud);
+      return res.status(401).json({ error: 'Invalid token audience' });
+    }
     
     // Attach user info to request
     req.user = {
