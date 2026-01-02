@@ -3258,7 +3258,7 @@ app.get('/admin/rules/:id', authenticateAdmin, async (req, res) => {
  */
 app.post('/admin/rules', authenticateAdmin, express.json(), async (req, res) => {
     try {
-        const { name, description, conditions, actions, priority, is_enabled } = req.body;
+        const { name, description, conditions, actions, priority, is_enabled, rule_type } = req.body;
         
         if (!name || !conditions || !actions) {
             return res.status(400).json({ error: 'Name, conditions, and actions are required' });
@@ -3271,6 +3271,7 @@ app.post('/admin/rules', authenticateAdmin, express.json(), async (req, res) => 
             actions,
             priority: priority || 0,
             is_active: is_enabled !== false,
+            rule_type,
             created_by: req.admin.id
         });
         
@@ -3294,6 +3295,7 @@ app.put('/admin/rules/:id', authenticateAdmin, express.json(), async (req, res) 
         if (req.body.actions !== undefined) updates.actions = req.body.actions;
         if (req.body.priority !== undefined) updates.priority = req.body.priority;
         if (req.body.is_enabled !== undefined) updates.is_active = req.body.is_enabled;
+        if (req.body.rule_type !== undefined) updates.rule_type = req.body.rule_type;
         
         const rule = await db.updateRule(req.params.id, updates);
         res.json({ rule });

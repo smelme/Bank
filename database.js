@@ -1515,8 +1515,8 @@ export async function createRule(ruleData) {
     
     try {
         const result = await pool.query(
-            `INSERT INTO auth_rules (name, description, conditions, actions, priority, is_enabled, created_by)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO auth_rules (name, description, conditions, actions, priority, is_enabled, rule_type, created_by)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
             [
                 ruleData.name,
@@ -1525,6 +1525,7 @@ export async function createRule(ruleData) {
                 JSON.stringify(ruleData.actions),
                 ruleData.priority || 0,
                 ruleData.is_active !== false,
+                ruleData.rule_type,
                 ruleData.created_by
             ]
         );
@@ -1612,6 +1613,11 @@ export async function updateRule(id, updates) {
         if (updates.is_active !== undefined) {
             fields.push(`is_enabled = $${paramIndex}`);
             values.push(updates.is_active);
+            paramIndex++;
+        }
+        if (updates.rule_type !== undefined) {
+            fields.push(`rule_type = $${paramIndex}`);
+            values.push(updates.rule_type);
             paramIndex++;
         }
         
