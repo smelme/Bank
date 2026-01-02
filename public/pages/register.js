@@ -387,7 +387,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 
         // Display success
         const accountDetails = document.getElementById('accountDetails');
-        const authUrl = getAuthorizationUrl();
+        const authUrl = await getAuthorizationUrl();
         accountDetails.innerHTML = `
             <h3>Registration Successful!</h3>
             <div class="data-item"><span class="data-label">Username:</span><span class="data-value">${user.username}</span></div>
