@@ -780,43 +780,40 @@ app.post('/v1/passkeys/register/verify', async (req, res) => {
         backupState: regInfo.credentialBackedUp ?? regInfo.credential?.credentialBackedUp ?? false,
         deviceType: regInfo.credentialDeviceType ?? regInfo.credential?.credentialDeviceType ?? null
       });
+      
+      // Log enrollment event
+      await req.logAuthActivity({
+        user_id: userId,
+        username: user.username,
+        auth_method: 'passkey_enrollment',
+        success: true,
+        metadata: { 
+          credential_id: credentialIdB64,
+          device_type: regInfo.credentialDeviceType ?? regInfo.credential?.credentialDeviceType ?? null,
+          backup_eligible: regInfo.credentialBackedUp ?? regInfo.credential?.credentialBackedUp ?? false
+        }
+      });
+      
+      await db.logAuthEvent({
+        userId,
+        username: user.username,
+        eventType: 'PASSKEY_ENROLLED',
+        method: 'WEBAUTHN',
+        result: 'SUCCESS',
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent']
+      });
+      
+      console.log(`✓ Passkey registration verified and stored for ${user.username}`);
+      
+      return res.json({ 
+        verified: true,
+        message: 'Passkey enrolled successfully' 
+      });
     } catch (storeErr) {
       console.error('Failed to store passkey credential:', storeErr);
       return res.status(500).json({ error: 'Failed to store passkey credential', details: storeErr.message });
     }
-    
-    // Delete used challenge
-    await db.deleteChallenge(challengeRecord.challenge);
-    
-    // Log enrollment event
-    await req.logAuthActivity({
-      user_id: userId,
-      username: user.username,
-      auth_method: 'passkey_enrollment',
-      success: true,
-      metadata: { 
-        credential_id: credentialIdB64,
-        device_type: regInfo.credentialDeviceType ?? regInfo.credential?.credentialDeviceType ?? null,
-        backup_eligible: regInfo.credentialBackedUp ?? regInfo.credential?.credentialBackedUp ?? false
-      }
-    });
-    
-    await db.logAuthEvent({
-      userId,
-      username: user.username,
-      eventType: 'PASSKEY_ENROLLED',
-      method: 'WEBAUTHN',
-      result: 'SUCCESS',
-      ipAddress: req.ip,
-      userAgent: req.headers['user-agent']
-    });
-    
-    console.log(`✓ Passkey registration verified and stored for ${user.username}`);
-    
-    return res.json({ 
-      verified: true,
-      message: 'Passkey enrolled successfully' 
-    });
     
   } catch (error) {
     console.error('Error verifying registration:', error);

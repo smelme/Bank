@@ -6,7 +6,7 @@
  */
 
 // Use the UMD bundle loaded via script tag (window.oidc)
-const { UserManager, WebStorageStateStore } = window.oidc;
+const { UserManager, SigninRequest } = window.oidc;
 
 export const oidcConfig = {
   // Keycloak realm URL - note the URL encoding for the space in "Tamange Bank"
@@ -383,6 +383,7 @@ export async function signOut() {
  */
 export async function getAuthorizationUrl() {
   const manager = getUserManager();
-  const signinRequest = await manager.createSigninRequest();
-  return signinRequest.url;
+  const signinRequest = new SigninRequest(manager.settings);
+  const url = await signinRequest.getSigninUrl();
+  return url;
 }
