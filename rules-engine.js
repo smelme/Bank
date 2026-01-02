@@ -273,19 +273,15 @@ function applyActions(actions, result, context) {
             continue;
         }
         
-        // Allow only specific methods (whitelist)
+        // Allow only specific methods (whitelist) - REPLACE the allowed methods
         if (action.type === 'allow_methods' && Array.isArray(action.methods)) {
             console.log('[RULES] Applying allow_methods:', action.methods);
-            const allowedSet = new Set(action.methods);
-            
-            // Remove methods not in the whitelist
-            for (const method of Array.from(result.allowedMethods)) {
-                if (!allowedSet.has(method)) {
-                    console.log('[RULES] Removing method:', method);
-                    result.allowedMethods.delete(method);
-                    result.deniedMethods.add(method);
-                }
-            }
+            // Clear existing methods and set to the specified whitelist
+            result.allowedMethods.clear();
+            action.methods.forEach(method => {
+                result.allowedMethods.add(method);
+                console.log('[RULES] Adding allowed method:', method);
+            });
         }
         
         // Deny specific auth methods
