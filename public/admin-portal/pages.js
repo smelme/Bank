@@ -834,7 +834,7 @@ async function loadRules() {
   const { fetchAPI, showNotification } = window.adminApp;
 
   try {
-    const rules = await fetchAPI('/admin/rules');
+    const { rules } = await fetchAPI('/admin/rules');
 
     const pageContent = document.getElementById('page-content');
     pageContent.innerHTML = `
@@ -1011,7 +1011,7 @@ async function editRule(ruleId) {
   const { fetchAPI, showNotification } = window.adminApp;
 
   try {
-    const rule = await fetchAPI(`/admin/rules/${ruleId}`);
+    const { rule } = await fetchAPI(`/admin/rules/${ruleId}`);
     showRuleModal(rule);
   } catch (error) {
     console.error('Error loading rule for editing:', error);
