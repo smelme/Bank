@@ -118,10 +118,15 @@ function evaluateConditions(conditions, context) {
  * @returns {boolean} Whether condition is met
  */
 function evaluateSingleCondition(condition, context) {
-    const { field, operator, value } = condition;
+    const { field, property, operator, value } = condition;
+    const fieldName = field || property; // Support both field and property for compatibility
+    
+    if (!fieldName || !operator) {
+        return false;
+    }
     
     // Get the actual value from context
-    let contextValue = getNestedValue(context, field);
+    let contextValue = getNestedValue(context, fieldName);
     
     // Handle different operators
     switch (operator) {
@@ -219,58 +224,57 @@ function ipToNumber(ip) {
 
 /**
  * Apply rule actions to the result
- * @param {Object} actions - Rule actions
+ * @param {Array|Object} actions - Rule actions (array or single object)
  * @param {Object} result - Current evaluation result
  * @param {Object} context - Authentication context
  */
 function applyActions(actions, result, context) {
-    if (!actions || typeof actions !== 'object') {
+    if (!actions) {
         return;
     }
     
-    // Block access completely
-    if (actions.block === true) {
-        result.allowed = false;
-        result.blockReason = actions.block_reason || 'Access denied by security rule';
-        result.allowedMethods.clear();
-        return;
-    }
+    // Handle both array format (from frontend) and object format (legacy)
+    const actionsArray = Array.isArray(actions) ? actions : [actions];
     
-    // Deny specific auth methods
-    if (Array.isArray(actions.deny_methods)) {
-        actions.deny_methods.forEach(method => {
-            result.allowedMethods.delete(method);
-            result.deniedMethods.add(method);
-        });
-    }
-    
-    // Allow only specific methods (whitelist)
-    if (Array.isArray(actions.allow_only_methods)) {
-        const allowedSet = new Set(actions.allow_only_methods);
+    for (const action of actionsArray) {
+        if (!action || typeof action !== 'object') {
+            continue;
+        }
         
-        // Remove methods not in the whitelist
-        for (const method of result.allowedMethods) {
-            if (!allowedSet.has(method)) {
+        // Block access completely
+        if (action.type === 'block_access') {
+            result.allowed = false;
+            result.blockReason = action.reason || 'Access denied by security rule';
+            result.allowedMethods.clear();
+            return;
+        }
+        
+        // Require 2FA (not implemented yet)
+        if (action.type === 'require_2fa') {
+            // For now, just allow all methods but mark as requiring 2FA
+            // This would need additional implementation
+            continue;
+        }
+        
+        // Allow only specific methods (whitelist)
+        if (action.type === 'allow_methods' && Array.isArray(action.methods)) {
+            const allowedSet = new Set(action.methods);
+            
+            // Remove methods not in the whitelist
+            for (const method of Array.from(result.allowedMethods)) {
+                if (!allowedSet.has(method)) {
+                    result.allowedMethods.delete(method);
+                    result.deniedMethods.add(method);
+                }
+            }
+        }
+        
+        // Deny specific auth methods
+        if (action.type === 'deny_methods' && Array.isArray(action.methods)) {
+            action.methods.forEach(method => {
                 result.allowedMethods.delete(method);
                 result.deniedMethods.add(method);
-            }
-        }
-    }
-    
-    // Require specific method
-    if (actions.require_method) {
-        // Remove all methods except the required one
-        const requiredMethod = actions.require_method;
-        for (const method of result.allowedMethods) {
-            if (method !== requiredMethod) {
-                result.allowedMethods.delete(method);
-            }
-        }
-        
-        // If required method not available, block access
-        if (!result.allowedMethods.has(requiredMethod)) {
-            result.allowed = false;
-            result.blockReason = `${requiredMethod} authentication required`;
+            });
         }
     }
     
