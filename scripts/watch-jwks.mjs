@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import fs from 'fs';
 
-const LOCAL_PATH = './secrets/orchestrator-jwks.json';
+const LOCAL_PATH = './secrets/trustgate-jwks.json';
 const DEFAULT_URL = 'https://bank-production-37ea.up.railway.app/.well-known/jwks.json';
-const JWKS_URL = process.env.ORCHESTRATOR_JWKS_URL || DEFAULT_URL;
+const JWKS_URL = process.env.TRUSTGATE_JWKS_URL || DEFAULT_URL;
 const MAX_ATTEMPTS = 12;
 const INTERVAL_MS = 10000;
 

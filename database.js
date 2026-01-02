@@ -96,7 +96,7 @@ export async function setupTables() {
     if (!pool) return false;
 
     try {
-        // === NEW ORCHESTRATOR TABLES (Master DB) ===
+        // === NEW TRUSTGATE TABLES (Master DB) ===
         
         // Users table - Master source of truth
         await pool.query(`
@@ -512,10 +512,10 @@ export async function closeDatabase() {
     }
 }
 
-// === NEW ORCHESTRATOR DB FUNCTIONS ===
+// === NEW TRUSTGATE DB FUNCTIONS ===
 
 /**
- * Create a new user in the Orchestrator DB (master)
+ * Create a new user in the TrustGate DB (master)
  */
 export async function createUser(userData) {
     if (!pool) {

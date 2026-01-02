@@ -42,10 +42,10 @@ try {
     console.log(`\nRedirect location: ${location}`);
     
     if (location && location.includes('bank-production-37ea.up.railway.app/authorize')) {
-      console.log('✅ SUCCESS: Keycloak broker is redirecting to the orchestrator!');
+      console.log('✅ SUCCESS: Keycloak broker is redirecting to the trustgate!');
       console.log('The unified authentication flow is working via broker login.');
     } else {
-      console.log('❌ UNEXPECTED: Not redirecting to orchestrator');
+      console.log('❌ UNEXPECTED: Not redirecting to trustgate');
     }
   } else {
     console.log(`❌ ERROR: Expected redirect (302), got ${response.status}`);

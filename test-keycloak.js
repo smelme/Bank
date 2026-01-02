@@ -54,7 +54,7 @@ async function testConnection() {
     }
     
     console.log('\nTroubleshooting steps:');
-    console.log('1. Verify the orchestrator-service client exists in Keycloak');
+    console.log('1. Verify the trustgate-service client exists in Keycloak');
     console.log('2. Ensure "Client authentication" is ON');
     console.log('3. Ensure "Service accounts roles" is ON');
     console.log('4. Verify the client secret matches');

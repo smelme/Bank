@@ -33,11 +33,11 @@ async function createTokenExchangeComponent() {
 
   const componentsUrl = `${KEYCLOAK_URL}/admin/realms/${encodeURIComponent(REALM)}/components`;
 
-  const jwksUrl = process.env.ORCHESTRATOR_JWKS_URL || `https://bank-production-37ea.up.railway.app/.well-known/jwks.json`;
+  const jwksUrl = process.env.TRUSTGATE_JWKS_URL || `https://bank-production-37ea.up.railway.app/.well-known/jwks.json`;
 
   // Create a token exchange component
   const componentPayload = {
-    name: 'orchestrator-token-exchange',
+    name: 'trustgate-token-exchange',
     providerId: 'token-exchange',
     providerType: 'org.keycloak.protocol.oidc.TokenExchangeProvider',
     config: {

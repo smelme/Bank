@@ -100,13 +100,13 @@ async function configureProperLinking() {
 
   console.log('\n✅ Flow configured for automatic linking!');
   console.log('\nHow it works:');
-  console.log('  1. Orchestrator authenticates user with passkey');
+  console.log('  1. TrustGate authenticates user with passkey');
   console.log('  2. Keycloak receives user info (sub, email, name)');
   console.log('  3. Create User If Unique checks if user exists (by federated identity)');
   console.log('  4. If new → creates user automatically');
   console.log('  5. If exists → Handle Existing Account links automatically');
   console.log('  6. No password, no prompts - just automatic linking!');
-  console.log('\nKey: Users are matched by federated identity (orchestrator user ID),');
+  console.log('\nKey: Users are matched by federated identity (trustgate user ID),');
   console.log('not by email. So first login creates Keycloak user, subsequent logins reuse it.');
 }
 

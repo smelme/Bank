@@ -2,7 +2,7 @@
  * Keycloak Admin API Client
  * 
  * Manages users in Keycloak via the Admin REST API.
- * The Orchestrator DB is the master source of truth, and this module
+ * The TrustGate DB is the master source of truth, and this module
  * pushes user data to Keycloak for authentication purposes.
  */
 
@@ -12,7 +12,7 @@ import KcAdminClient from '@keycloak/keycloak-admin-client';
 const getConfig = () => ({
   KEYCLOAK_URL: process.env.KEYCLOAK_URL || 'https://keycloak-production-5bd5.up.railway.app',
   REALM: process.env.KEYCLOAK_REALM || 'Tamange Bank',
-  CLIENT_ID: process.env.KEYCLOAK_ADMIN_CLIENT_ID || 'orchestrator-service',
+  CLIENT_ID: process.env.KEYCLOAK_ADMIN_CLIENT_ID || 'trustgate-service',
   CLIENT_SECRET: process.env.KEYCLOAK_ADMIN_CLIENT_SECRET
 });
 

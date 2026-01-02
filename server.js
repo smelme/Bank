@@ -130,7 +130,7 @@ async function validateTrustGateToken(req, res, next) {
     );
     
     const { payload } = await jwtVerify(token, trustgateJWKS, {
-      issuer: process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app'
+      issuer: process.env.TRUSTGATE_ISS || 'https://bank-production-37ea.up.railway.app'
     });
     
     console.log('Token validated successfully for user:', payload.sub, payload.preferred_username);
@@ -1704,10 +1704,10 @@ app.get('/.well-known/jwks.json', (req, res) => {
       return res.sendFile(jwksPath);
     }
 
-    if (process.env.ORCHESTRATOR_JWKS) {
+    if (process.env.TRUSTGATE_JWKS) {
       res.setHeader('Content-Type', 'application/json');
       try {
-        const jwks = JSON.parse(process.env.ORCHESTRATOR_JWKS);
+        const jwks = JSON.parse(process.env.TRUSTGATE_JWKS);
         return res.json(jwks);
       } catch (parseErr) {
         console.error('Failed to parse TRUSTGATE_JWKS env var as JSON:', parseErr);
@@ -1727,14 +1727,14 @@ app.get('/.well-known/jwks.json', (req, res) => {
 app.get('/.well-known/openid-configuration', (req, res) => {
   try {
     // Determine issuer: prefer explicit env var TRUSTGATE_ISS, else derive from request host
-    const issuer = (process.env.ORCHESTRATOR_ISS && process.env.ORCHESTRATOR_ISS.trim()) || (() => {
+    const issuer = (process.env.TRUSTGATE_ISS && process.env.TRUSTGATE_ISS.trim()) || (() => {
       const protocol = req.get('X-Forwarded-Proto') || req.protocol;
       return `${protocol}://${req.get('host')}`;
     })();
 
     // Only serve discovery if JWKS is available (via file or env) or an explicit issuer is configured
-    const jwksPath = path.join(__dirname, 'secrets', 'orchestrator-jwks.json');
-    if (!fs.existsSync(jwksPath) && !process.env.ORCHESTRATOR_JWKS && !process.env.ORCHESTRATOR_ISS) {
+    const jwksPath = path.join(__dirname, 'secrets', 'trustgate-jwks.json');
+    if (!fs.existsSync(jwksPath) && !process.env.TRUSTGATE_JWKS && !process.env.TRUSTGATE_ISS) {
       return res.status(404).json({ error: 'not found' });
     }
 
@@ -2392,7 +2392,7 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
 
     // Generate tokens
     const user = codeData.user;
-    const issuer = process.env.ORCHESTRATOR_ISS || `https://${req.get('host')}`;
+    const issuer = process.env.TRUSTGATE_ISS || `https://${req.get('host')}`;
 
     // ID Token (must include nonce if it was in the original request)
     const idTokenClaims = {
@@ -2412,12 +2412,12 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
     }
     
     const idToken = await new SignJWT(idTokenClaims)
-    .setProtectedHeader({ alg: 'RS256', kid: 'orchestrator-1' })
+    .setProtectedHeader({ alg: 'RS256', kid: 'trustgate-1' })
     .setIssuedAt()
     .setExpirationTime('1h')
     .sign(await loadPrivateKey());
 
-    console.log('Generated ID token with issuer:', issuer, 'audience:', client_id, 'kid: orchestrator-1', 'nonce:', codeData.nonce ? 'present' : 'not provided');
+    console.log('Generated ID token with issuer:', issuer, 'audience:', client_id, 'kid: trustgate-1', 'nonce:', codeData.nonce ? 'present' : 'not provided');
 
     // Access Token (must include user claims for /userinfo endpoint)
     const accessToken = await new SignJWT({
@@ -2431,7 +2431,7 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
       iss: issuer,
       scope: 'openid profile email'
     })
-    .setProtectedHeader({ alg: 'RS256', kid: 'orchestrator-1' })
+    .setProtectedHeader({ alg: 'RS256', kid: 'trustgate-1' })
     .setIssuedAt()
     .setExpirationTime('1h')
     .sign(await loadPrivateKey());
@@ -3092,7 +3092,7 @@ async function authenticateAdmin(req, res, next) {
         const token = authHeader.substring(7);
         
         // Verify JWT token
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'orchestrator-secret');
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'trustgate-secret');
         const { payload } = await jwtVerify(token, secret);
         
         // Check if it's an admin token
@@ -3141,7 +3141,7 @@ app.post('/admin/login', express.json(), async (req, res) => {
         await db.updateAdminLastLogin(admin.id);
         
         // Generate JWT token
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'orchestrator-secret');
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'trustgate-secret');
         const token = await new SignJWT({
             sub: admin.id,
             username: admin.username,
@@ -3192,7 +3192,7 @@ app.get('/admin/me', authenticateAdmin, async (req, res) => {
 app.post('/admin/refresh', authenticateAdmin, async (req, res) => {
     try {
         // Generate new JWT token with extended expiration
-        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'orchestrator-secret');
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'trustgate-secret');
         const token = await new SignJWT({
             sub: req.admin.id,
             username: req.admin.username,

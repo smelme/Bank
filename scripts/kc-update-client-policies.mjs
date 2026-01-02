@@ -43,7 +43,7 @@ async function updateProfile() {
   const existingProfile = existingProfiles.profiles?.find(p => p.name === 'Token-Exchange');
   if (existingProfile) {
     const updateUrl = `${profilesUrl}/${encodeURIComponent(existingProfile.name)}`;
-    const jwksUrl = process.env.ORCHESTRATOR_JWKS_URL || `https://bank-production-37ea.up.railway.app/.well-known/jwks.json`;
+    const jwksUrl = process.env.TRUSTGATE_JWKS_URL || `https://bank-production-37ea.up.railway.app/.well-known/jwks.json`;
 
     const updatedProfile = {
       ...existingProfile,

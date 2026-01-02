@@ -285,7 +285,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
         const documentNumber = claims.document_number || '';
         const username = email.split('@')[0] || documentNumber.replace(/[^a-zA-Z0-9]/g, '');
         
-        // Register user in Orchestrator + Keycloak
+        // Register user in TrustGate + Keycloak
         const registerData = {
             username,
             email,

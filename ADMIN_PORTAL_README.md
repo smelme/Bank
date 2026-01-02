@@ -347,7 +347,7 @@ Rules will control:
 
 ```javascript
 // From any application (e.g., Tamange Bank)
-const response = await fetch('https://orchestrator.domain.com/admin/analytics', {
+const response = await fetch('https://trustgate.domain.com/admin/analytics', {
   headers: {
     'Authorization': 'Bearer YOUR_ADMIN_JWT_TOKEN'
   }

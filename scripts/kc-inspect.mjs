@@ -30,9 +30,9 @@ import KcAdminClient from '@keycloak/keycloak-admin-client';
   }
 
   try {
-    const clients = await client.clients.find({clientId: 'orchestrator-service'});
+    const clients = await client.clients.find({clientId: 'trustgate-service'});
     if (!clients || clients.length === 0) {
-      console.log('Client orchestrator-service not found in realm');
+      console.log('Client trustgate-service not found in realm');
     } else {
       console.log('Found client(s):');
       for (const c of clients) {

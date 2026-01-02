@@ -11,7 +11,7 @@ try {
 import { exportJWK, importSPKI } from 'jose';
 
 try {
-  const pubPemPath = './orchestrator-public.pem';
+  const pubPemPath = './trustgate-public.pem';
   if (!fs.existsSync(pubPemPath)) {
     console.error('Public key not found at', pubPemPath);
     process.exit(2);

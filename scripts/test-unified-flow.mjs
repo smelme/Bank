@@ -25,7 +25,7 @@ const codeChallenge = 'test-code-challenge'; // In real implementation, this wou
 authUrl.searchParams.set('code_challenge', codeChallenge);
 authUrl.searchParams.set('code_challenge_method', 'S256');
 
-// Make a request to the auth endpoint (this should redirect to the orchestrator)
+// Make a request to the auth endpoint (this should redirect to the trustgate)
 console.log('\nMaking request to Keycloak auth endpoint...');
 try {
   const response = await fetch(authUrl.toString(), {
@@ -40,10 +40,10 @@ try {
     console.log(`\nRedirect location: ${location}`);
     
     if (location && location.includes('bank-production-37ea.up.railway.app/authorize')) {
-      console.log('✅ SUCCESS: Keycloak is redirecting to the orchestrator!');
+      console.log('✅ SUCCESS: Keycloak is redirecting to the trustgate!');
       console.log('The unified authentication flow is working.');
     } else {
-      console.log('❌ UNEXPECTED: Not redirecting to orchestrator');
+      console.log('❌ UNEXPECTED: Not redirecting to trustgate');
     }
   } else {
     console.log(`❌ ERROR: Expected redirect (302), got ${response.status}`);

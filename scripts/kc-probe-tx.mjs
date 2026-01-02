@@ -26,7 +26,7 @@ async function probe() {
     `/admin/realms/${realm}/client-policies/`,
     `/admin/realms/${realm}/authentication/`,
     `/admin/realms/${realm}/components`,
-    `/admin/realms/${realm}/clients/${encodeURIComponent('orchestrator-service')}/roles`,
+    `/admin/realms/${realm}/clients/${encodeURIComponent('trustgate-service')}/roles`,
     `/admin/realms/${realm}/clients`,
   ];
 
@@ -43,12 +43,12 @@ async function probe() {
   // Also probe token-exchange support endpoint (client policies may be absent)
   // Try to GET realm client by id
   try {
-    const clients = await admin.clients.find({ clientId: 'orchestrator-service' });
+    const clients = await admin.clients.find({ clientId: 'trustgate-service' });
     if (clients && clients.length) {
       const c = clients[0];
       console.log('Client found. id:', c.id, 'serviceAccountsEnabled:', c.serviceAccountsEnabled);
     } else {
-      console.log('Client orchestrator-service not found');
+      console.log('Client trustgate-service not found');
     }
   } catch (err) {
     console.error('Error fetching client:', err);

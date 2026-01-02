@@ -3,7 +3,7 @@
  * Configure for non-unique emails:
  * - Remove email uniqueness requirement
  * - Use username as the primary identifier
- * - Federated identity (orchestrator user ID) is the true link
+ * - Federated identity (trustgate user ID) is the true link
  */
 
 import dotenv from 'dotenv';
@@ -137,23 +137,23 @@ async function configureForNonUniqueEmails() {
   console.log('\n✅ Configuration complete!');
   console.log('\n=== ARCHITECTURE ===');
   console.log('User Identification:');
-  console.log('  - Primary ID: Orchestrator user ID (UUID in sub claim)');
+  console.log('  - Primary ID: TrustGate user ID (UUID in sub claim)');
   console.log('  - Username: Generated at registration, mapped via preferred_username');
   console.log('  - Email: NOT unique, can be shared by family members');
   console.log('\nUser Creation Flow:');
-  console.log('  1. User registers → Orchestrator creates user with:');
+  console.log('  1. User registers → TrustGate creates user with:');
   console.log('     • Unique UUID (id)');
   console.log('     • Generated username (unique)');
   console.log('     • Email (can be duplicate)');
   console.log('     • Passkey credential');
   console.log('  2. First login → Keycloak creates user:');
-  console.log('     • Checks if federated identity exists (by orchestrator UUID)');
+  console.log('     • Checks if federated identity exists (by trustgate UUID)');
   console.log('     • If not, creates new Keycloak user');
   console.log('     • Maps username from preferred_username claim');
   console.log('     • Maps email (non-unique)');
-  console.log('     • Links via federated identity (orchestrator UUID → sub claim)');
+  console.log('     • Links via federated identity (trustgate UUID → sub claim)');
   console.log('  3. Subsequent logins → Keycloak finds user:');
-  console.log('     • Matches by federated identity (orchestrator UUID)');
+  console.log('     • Matches by federated identity (trustgate UUID)');
   console.log('     • Uses existing Keycloak user');
   console.log('     • Updates user data if syncMode=FORCE');
 }

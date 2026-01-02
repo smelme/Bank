@@ -3,7 +3,7 @@
  * Simplify the first broker login flow:
  * - Disable Handle Existing Account (causes password prompts)
  * - Keep only Create User If Unique (auto-creates users)
- * This way each orchestrator user gets their own Keycloak user automatically
+ * This way each trustgate user gets their own Keycloak user automatically
  */
 
 import dotenv from 'dotenv';
@@ -89,9 +89,9 @@ async function simplifyFlow() {
   console.log('  1. Review Profile: DISABLED');
   console.log('  2. Create User If Unique: REQUIRED (always creates user)');
   console.log('  3. Handle Existing Account: DISABLED');
-  console.log('\nResult: Each orchestrator login automatically creates a new Keycloak user.');
+  console.log('\nResult: Each trustgate login automatically creates a new Keycloak user.');
   console.log('No prompts, no password verification, just automatic user creation!');
-  console.log('\nNote: Users are linked by the federated identity (orchestrator user ID),');
+  console.log('\nNote: Users are linked by the federated identity (trustgate user ID),');
   console.log('so signing in with the same passkey will always use the same Keycloak user.');
 }
 

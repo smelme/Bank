@@ -35,22 +35,22 @@ async function createPolicy() {
 
   // Policy payload - best-effort for common Keycloak versions
   const policy = {
-    name: 'allow-orchestrator-token-exchange',
-    description: 'Allow orchestrator-service to perform token exchange from orchestrator issuer',
+    name: 'allow-trustgate-token-exchange',
+    description: 'Allow trustgate-service to perform token exchange from trustgate issuer',
     enabled: true,
     // 'decisionStrategy' or 'logic' fields may be required depending on KC version; try minimal
     conditions: [
       {
         providerId: 'AuthenticatedClientCondition',
         config: {
-          clientIds: ['orchestrator-service']
+          clientIds: ['trustgate-service']
         }
       },
       {
         providerId: 'TokenExchangeCondition',
         config: {
           // Some KC versions expect 'issuer' or 'iss' or 'subjectIssuer'
-          issuer: process.env.ORCHESTRATOR_ISS || `https://bank-production-37ea.up.railway.app`
+          issuer: process.env.TRUSTGATE_ISS || `https://bank-production-37ea.up.railway.app`
         }
       }
     ]

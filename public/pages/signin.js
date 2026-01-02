@@ -1,13 +1,13 @@
 /**
- * Sign In Page - Unified Keycloak OIDC Flow with Orchestrator Identity Provider
+ * Sign In Page - Unified Keycloak OIDC Flow with TrustGate Identity Provider
  *
  * This page provides a single authentication method through Keycloak OIDC,
- * which delegates passkey authentication to the orchestrator as an identity provider.
+ * which delegates passkey authentication to TrustGate as an identity provider.
  */
 
 import { getUserManager, storeTokens } from '/core/oidc-config.js';
 
-// === Unified Sign-In (Keycloak OIDC with Orchestrator Identity Provider) ===
+// === Unified Sign-In (Keycloak OIDC with TrustGate Identity Provider) ===
 
 async function handleUnifiedSignIn() {
   const resultDiv = document.getElementById('verifyResult');
@@ -16,7 +16,7 @@ async function handleUnifiedSignIn() {
   try {
     const userManager = getUserManager();
 
-    // This will redirect to Keycloak login page, which will use the orchestrator identity provider
+    // This will redirect to Keycloak login page, which will use the TrustGate identity provider
     await userManager.signinRedirect({
       state: { returnUrl: '/home' }
     });

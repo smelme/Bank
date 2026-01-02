@@ -36,10 +36,10 @@ async function run() {
   console.log(JSON.stringify(body, null, 2).slice(0, 2000));
 
   const existing = body.policies || [];
-  let target = existing.find(p => p.name === 'allow-orchestrator-token-exchange' || p.name === 'Token-Exchange');
+  let target = existing.find(p => p.name === 'allow-trustgate-token-exchange' || p.name === 'Token-Exchange');
   if (!target) {
     console.log('No target policy found; will attempt to create a new policy via PUT to /policies/{name}');
-    target = { name: 'allow-orchestrator-token-exchange', enabled: true, conditions: [], profiles: [] };
+    target = { name: 'allow-trustgate-token-exchange', enabled: true, conditions: [], profiles: [] };
   }
 
   // Add our conditions if not present
@@ -48,7 +48,7 @@ async function run() {
 
   if (!hasAuthClient) {
     target.conditions = target.conditions || [];
-    target.conditions.push({ providerId: 'AuthenticatedClientCondition', config: { clientIds: ['orchestrator-service'] } });
+    target.conditions.push({ providerId: 'AuthenticatedClientCondition', config: { clientIds: ['trustgate-service'] } });
   }
   if (!hasIss) {
     target.conditions = target.conditions || [];

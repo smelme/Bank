@@ -3,15 +3,15 @@ import { jwtVerify, createRemoteJWKSet } from 'jose';
 
 dotenv.config();
 
-const ORCHESTRATOR_BASE = 'https://bank-production-37ea.up.railway.app';
+const TRUSTGATE_BASE = 'https://bank-production-37ea.up.railway.app';
 const KEYCLOAK_REDIRECT = 'https://keycloak-production-5bd5.up.railway.app/realms/Tamange%20Bank/broker/oidc/endpoint';
 
 async function testOIDCFlow() {
-  console.log('=== Testing Orchestrator OIDC Flow ===\n');
+  console.log('=== Testing TrustGate OIDC Flow ===\n');
 
   // Step 1: Verify OIDC Discovery
   console.log('1. Testing OIDC Discovery...');
-  const discoveryRes = await fetch(`${ORCHESTRATOR_BASE}/.well-known/openid-configuration`);
+  const discoveryRes = await fetch(`${TRUSTGATE_BASE}/.well-known/openid-configuration`);
   const discovery = await discoveryRes.json();
   console.log('✓ Discovery endpoint working');
   console.log('  Issuer:', discovery.issuer);

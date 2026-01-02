@@ -90,7 +90,7 @@ async function createAttributeMappers() {
   }
 
   console.log('\n✅ Attribute mappers created!');
-  console.log('These map orchestrator claims to Keycloak user attributes:');
+  console.log('These map trustgate claims to Keycloak user attributes:');
   console.log('  preferred_username → username');
   console.log('  email → email');
   console.log('  given_name → firstName');

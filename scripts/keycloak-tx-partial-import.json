@@ -19,15 +19,15 @@
     ],
     "policies": [
       {
-        "name": "allow-orchestrator-exchange",
-        "description": "Allow orchestrator-exchange client to perform token exchanges for orchestrator issuer",
+        "name": "allow-trustgate-exchange",
+        "description": "Allow trustgate-exchange client to perform token exchanges for trustgate issuer",
         "enabled": true,
         "conditions": [
           {
             "condition": "client-id",
             "configuration": {
               "clientId": [
-                "orchestrator-exchange"
+                "trustgate-exchange"
               ]
             }
           },

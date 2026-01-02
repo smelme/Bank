@@ -21,7 +21,7 @@ console.log('Creating custom authentication flow for unified identity provider a
 // Create a new flow
 const flowData = {
   alias: 'unified-passkey-flow',
-  description: 'Unified flow that redirects directly to orchestrator identity provider',
+  description: 'Unified flow that redirects directly to trustgate identity provider',
   providerId: 'basic-flow',
   topLevel: true,
   builtIn: false

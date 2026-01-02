@@ -5,15 +5,15 @@ import { importPKCS8, SignJWT } from 'jose';
 
 // Simple token-exchange helper for TrustGate -> Keycloak
 // Env variables used:
-// - ORCHESTRATOR_PRIVATE_KEY or ORCHESTRATOR_PRIVATE_KEY_PATH (PEM PKCS8)
-// - ORCHESTRATOR_ISS (issuer, default: 'trustgate')
-// - ORCHESTRATOR_ASSERTION_LIFETIME (seconds, default: 30)
+// - TRUSTGATE_PRIVATE_KEY or TRUSTGATE_PRIVATE_KEY_PATH (PEM PKCS8)
+// - TRUSTGATE_ISS (issuer, default: 'trustgate')
+// - TRUSTGATE_ASSERTION_LIFETIME (seconds, default: 30)
 // - KEYCLOAK_TOKEN_URL (full token endpoint URL)
 // - KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
 
 async function loadPrivateKey() {
-  const pem = process.env.ORCHESTRATOR_PRIVATE_KEY || (process.env.ORCHESTRATOR_PRIVATE_KEY_PATH ? fs.readFileSync(process.env.ORCHESTRATOR_PRIVATE_KEY_PATH, 'utf8') : null);
-  if (!pem) throw new Error('Orchestrator private key not configured (ORCHESTRATOR_PRIVATE_KEY or ORCHESTRATOR_PRIVATE_KEY_PATH)');
+  const pem = process.env.TRUSTGATE_PRIVATE_KEY || (process.env.TRUSTGATE_PRIVATE_KEY_PATH ? fs.readFileSync(process.env.TRUSTGATE_PRIVATE_KEY_PATH, 'utf8') : null);
+  if (!pem) throw new Error('TrustGate private key not configured (TRUSTGATE_PRIVATE_KEY or TRUSTGATE_PRIVATE_KEY_PATH)');
   // importPKCS8 expects PKCS8 PEM for RSA/EC private keys
   return importPKCS8(pem, 'RS256');
 }
@@ -21,11 +21,11 @@ async function loadPrivateKey() {
 async function signAssertion(user) {
   const key = await loadPrivateKey();
   const now = Math.floor(Date.now() / 1000);
-  const iss = process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app';
+  const iss = process.env.TRUSTGATE_ISS || 'https://bank-production-37ea.up.railway.app';
   const aud = process.env.KEYCLOAK_CLIENT_ID || 'tamange-web';
-  const lifetime = parseInt(process.env.ORCHESTRATOR_ASSERTION_LIFETIME || '30', 10);
-  const azp = process.env.ORCHESTRATOR_CLIENT_ID || 'trustgate-service';
-  const scope = process.env.ORCHESTRATOR_SCOPE || 'profile email';
+  const lifetime = parseInt(process.env.TRUSTGATE_ASSERTION_LIFETIME || '30', 10);
+  const azp = process.env.TRUSTGATE_CLIENT_ID || 'trustgate-service';
+  const scope = process.env.TRUSTGATE_SCOPE || 'profile email';
 
   // generate jti
   const jti = (crypto.randomUUID && crypto.randomUUID()) || crypto.randomBytes(16).toString('hex');
@@ -41,7 +41,7 @@ async function signAssertion(user) {
   // attempt to read a kid from local JWKS if present to include in header
   let kid;
   try {
-    const jwksPath = path.join(process.cwd(), 'secrets', 'orchestrator-jwks.json');
+    const jwksPath = path.join(process.cwd(), 'secrets', 'trustgate-jwks.json');
     if (fs.existsSync(jwksPath)) {
       const jwks = JSON.parse(fs.readFileSync(jwksPath, 'utf8'));
       if (jwks.keys && jwks.keys.length) kid = jwks.keys[0].kid;

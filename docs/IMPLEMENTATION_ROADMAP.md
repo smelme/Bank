@@ -1,6 +1,6 @@
-# Implementation Roadmap - Option A (Keycloak + Orchestrator)
+# Implementation Roadmap - Option A (Keycloak + TrustGate)
 
-This document outlines the phased implementation plan for building the complete auth system with Keycloak as IDP and your Orchestrator handling policy/passkeys/risk.
+This document outlines the phased implementation plan for building the complete auth system with Keycloak as IDP and TrustGate handling policy/passkeys/risk.
 
 ---
 
@@ -16,7 +16,7 @@ This document outlines the phased implementation plan for building the complete 
        │                                     │
        ▼                                     ▼
 ┌─────────────────────────────────────────────────┐
-│            Orchestrator Service                  │
+│            TrustGate Service                  │
 │  ┌──────────────┐  ┌──────────────┐            │
 │  │ Risk Engine  │  │   Passkeys   │            │
 │  │   /decision  │  │  /register   │            │
@@ -42,7 +42,7 @@ This document outlines the phased implementation plan for building the complete 
 - [x] Keycloak deployed on Railway with Postgres
 - [x] Realm `tamange` created
 - [x] SPA client configured (PKCE enabled)
-- [x] Service client for Orchestrator
+- [x] Service client for TrustGate
 - [x] Test user created
 
 **Status**: ✅ Ready (see `KEYCLOAK_RAILWAY_SETUP.md`)
@@ -112,18 +112,18 @@ async function validateToken(token) {
 
 ---
 
-## Phase 3: Deploy Orchestrator Service
+## Phase 3: Deploy TrustGate Service
 
 **Goal**: Create the policy/passkeys/audit service.
 
 ### 3.1 Create Railway Service
-1. New service: `orchestrator`
-2. New Postgres: `orchestrator-db`
+1. New service: `trustgate`
+2. New Postgres: `trustgate-db`
 
 ### 3.2 Initialize Node Project
 ```bash
-mkdir orchestrator
-cd orchestrator
+mkdir trustgate
+cd trustgate
 npm init -y
 npm install express cors pg jose @simplewebauthn/server @simplewebauthn/browser
 ```
@@ -308,7 +308,7 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
 ```
 
 **Acceptance Criteria**:
-- [ ] Orchestrator deployed on Railway
+- [ ] TrustGate deployed on Railway
 - [ ] DB tables created
 - [ ] Endpoints return valid responses
 - [ ] Events logged to database
@@ -325,8 +325,8 @@ Create `public/pages/passkey-setup.js`:
 async function registerPasskey() {
   const userId = getUserId(); // from session/token
   
-  // Get options from Orchestrator
-  const optionsRes = await fetch('https://orchestrator-url/v1/passkeys/register/options', {
+  // Get options from TrustGate
+  const optionsRes = await fetch('https://trustgate-url/v1/passkeys/register/options', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, username: getUsername() })
@@ -338,8 +338,8 @@ async function registerPasskey() {
     publicKey: options
   });
   
-  // Verify with Orchestrator
-  const verifyRes = await fetch('https://orchestrator-url/v1/passkeys/register/verify', {
+  // Verify with TrustGate
+  const verifyRes = await fetch('https://trustgate-url/v1/passkeys/register/verify', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, credential })
@@ -357,7 +357,7 @@ Similar flow for authentication challenge.
 
 **Acceptance Criteria**:
 - [ ] User can enroll passkey from app UI
-- [ ] Passkey stored in Orchestrator DB
+- [ ] Passkey stored in TrustGate DB
 - [ ] User can authenticate with passkey
 - [ ] Events logged
 
@@ -376,14 +376,14 @@ cd keycloak-providers
 
 ### 5.2 Implement Risk Decision Authenticator
 Java class that:
-1. Calls Orchestrator `/v1/decision`
+1. Calls TrustGate `/v1/decision`
 2. Based on response, sets required authentication method
 3. Branches to appropriate next step
 
 ### 5.3 Implement Passkey Authenticator
 Java class that:
 1. Renders page with WebAuthn JS
-2. Calls Orchestrator for challenge/verify
+2. Calls TrustGate for challenge/verify
 3. Completes on success
 
 ### 5.4 Build Custom Keycloak Image
@@ -406,7 +406,7 @@ In Keycloak admin:
 
 **Acceptance Criteria**:
 - [ ] Custom authenticators deployed
-- [ ] Keycloak calls Orchestrator during login
+- [ ] Keycloak calls TrustGate during login
 - [ ] Passkey enforcement works
 - [ ] User can't bypass rules
 
@@ -414,7 +414,7 @@ In Keycloak admin:
 
 ## Phase 6: Add Biometric + OTP Factors
 
-**Goal**: Extend Orchestrator to support multiple factors.
+**Goal**: Extend TrustGate to support multiple factors.
 
 ### 6.1 Biometric Integration
 Use your existing biometric verification:
@@ -477,7 +477,7 @@ app.get('/v1/admin/events', async (req, res) => {
 
 ### 8.1 Custom Domain Migration
 - Add `id.yourdomain.com` for Keycloak
-- Add `auth.yourdomain.com` for Orchestrator
+- Add `auth.yourdomain.com` for TrustGate
 - Update all configs
 - Re-enroll passkeys
 
@@ -500,7 +500,7 @@ app.get('/v1/admin/events', async (req, res) => {
 |-------|-------------|-----------------|
 | 1 | Keycloak baseline | ✅ Complete |
 | 2 | SPA OIDC integration | 1-2 days |
-| 3 | Orchestrator service | 2-3 days |
+| 3 | TrustGate service | 2-3 days |
 | 4 | Passkey prototype | 1-2 days |
 | 5 | Keycloak plugins | 3-4 days |
 | 6 | Multi-factor support | 2-3 days |
@@ -514,7 +514,7 @@ app.get('/v1/admin/events', async (req, res) => {
 ## Next Immediate Steps
 
 1. **Follow Phase 2**: Wire your SPA to Keycloak OIDC
-2. Once login works, proceed to Phase 3 (Orchestrator)
+2. Once login works, proceed to Phase 3 (TrustGate)
 3. Build passkey prototype before adding Keycloak plugins
 
 Let me know when Phase 1 (Keycloak) is deployed and verified, and I'll help with Phase 2 OIDC integration!

@@ -14,8 +14,8 @@ import { signAssertion, exchangeWithKeycloak } from '../token-exchange.js';
 async function run() {
   try {
     const user = {
-      id: process.env.ORCHESTRATOR_TEST_USER_ID || 'user_test_1',
-      username: process.env.ORCHESTRATOR_TEST_USERNAME || 'test.user'
+      id: process.env.TRUSTGATE_TEST_USER_ID || 'user_test_1',
+      username: process.env.TRUSTGATE_TEST_USERNAME || 'test.user'
     };
 
     console.log('Signing assertion for user:', user);

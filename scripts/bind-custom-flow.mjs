@@ -53,4 +53,4 @@ if (!updateResp.ok) {
 }
 
 console.log('Successfully updated client to use custom authentication flow');
-console.log('Client will now redirect directly to the orchestrator identity provider');
+console.log('Client will now redirect directly to the trustgate identity provider');

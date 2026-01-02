@@ -1,5 +1,5 @@
 /**
- * Orchestrator Admin Portal - Main Application
+ * TrustGate Admin Portal - Main Application
  */
 
 // Import pages module

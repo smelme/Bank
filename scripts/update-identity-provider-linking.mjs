@@ -50,7 +50,7 @@ async function updateIdentityProvider() {
       ...currentConfig.config,
       // Link to existing account automatically if email matches
       linkOnly: 'false', // Allow both new and existing users
-      trustEmail: 'true', // Trust the email from the orchestrator
+      trustEmail: 'true', // Trust the email from the trustgate
       // Use 'first broker login' flow that handles account linking
       firstBrokerLoginFlowAlias: 'first broker login'
     }
@@ -69,7 +69,7 @@ async function updateIdentityProvider() {
 
   if (updateRes.ok) {
     console.log('✅ Identity provider updated successfully!');
-    console.log('✓ trustEmail: true (trust email from orchestrator)');
+    console.log('✓ trustEmail: true (trust email from trustgate)');
     console.log('✓ linkOnly: false (allow both new and existing users)');
     console.log('✓ firstBrokerLoginFlowAlias: first broker login (handles account linking)');
   } else {

@@ -1,6 +1,6 @@
 # Keycloak on Railway - Setup Guide
 
-This guide walks you through deploying **Keycloak** on Railway for Option A (Keycloak as IDP, Orchestrator for policy/passkeys/risk).
+This guide walks you through deploying **Keycloak** on Railway for Option A (Keycloak as IDP, TrustGate for policy/passkeys/risk).
 
 ---
 
@@ -143,11 +143,11 @@ Copy this URL from the **keycloak** service settings.
 3. Set to: **S256**
 4. Click **Save**
 
-### 3.4 Create Service Client (for Orchestrator/Backend)
+### 3.4 Create Service Client (for TrustGate/Backend)
 
 1. Go to **Clients** → **Create client**
 2. Fill in:
-   - **Client ID**: `orchestrator-service`
+   - **Client ID**: `trustgate-service`
    - **Client type**: OpenID Connect
    - Click **Next**
 3. **Capability config**:
@@ -195,7 +195,7 @@ From the discovery document, you'll need:
 - [ ] Admin console accessible at `/admin`
 - [ ] Realm `tamange` created
 - [ ] SPA client `tamange-web` configured with PKCE
-- [ ] Service client `orchestrator-service` created with credentials
+- [ ] Service client `trustgate-service` created with credentials
 - [ ] Test user created
 
 ---
@@ -222,8 +222,8 @@ From the discovery document, you'll need:
 
 Once Keycloak is running:
 1. **Phase 2**: Wire your SPA to use Keycloak OIDC (PKCE flow)
-2. **Phase 3**: Deploy Orchestrator service with risk engine + passkeys
-3. **Phase 4**: Add Keycloak custom authenticators to call Orchestrator
+2. **Phase 3**: Deploy TrustGate service with risk engine + passkeys
+3. **Phase 4**: Add Keycloak custom authenticators to call TrustGate
 
 ---
 

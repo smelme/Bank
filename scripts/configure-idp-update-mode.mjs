@@ -51,7 +51,7 @@ async function configureIdentityProvider() {
   const updatedConfig = {
     ...currentConfig,
     updateProfileFirstLoginMode: 'off', // Don't ask to review profile
-    trustEmail: true, // Trust the email from orchestrator  
+    trustEmail: true, // Trust the email from trustgate  
     linkOnly: false, // Allow both new users and linking
     config: {
       ...currentConfig.config,
@@ -74,8 +74,8 @@ async function configureIdentityProvider() {
     console.log('✅ Identity provider updated successfully!');
     console.log('\nNew settings:');
     console.log('  ✓ updateProfileFirstLoginMode: off (no profile review)');
-    console.log('  ✓ trustEmail: true (trust orchestrator email)');
-    console.log('  ✓ syncMode: FORCE (always sync from orchestrator)');
+    console.log('  ✓ trustEmail: true (trust trustgate email)');
+    console.log('  ✓ syncMode: FORCE (always sync from trustgate)');
     console.log('\nThis should allow automatic user creation without prompts.');
   } else {
     const error = await updateRes.text();
