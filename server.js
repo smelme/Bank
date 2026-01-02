@@ -3293,7 +3293,13 @@ app.get('/admin/activity', authenticateAdmin, async (req, res) => {
         if (req.query.success !== undefined) filters.success = req.query.success === 'true';
         if (req.query.ip_address) filters.ip_address = req.query.ip_address;
         if (req.query.from_date) filters.from_date = new Date(req.query.from_date);
-        if (req.query.to_date) filters.to_date = new Date(req.query.to_date);
+        if (req.query.to_date) {
+            // Add 1 day minus 1ms to include the entire end date
+            const toDate = new Date(req.query.to_date);
+            toDate.setDate(toDate.getDate() + 1);
+            toDate.setMilliseconds(toDate.getMilliseconds() - 1);
+            filters.to_date = toDate;
+        }
         if (req.query.limit) filters.limit = parseInt(req.query.limit);
         if (req.query.offset) filters.offset = parseInt(req.query.offset);
         
