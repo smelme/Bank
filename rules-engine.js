@@ -23,8 +23,16 @@ import * as db from './database.js';
  */
 export async function evaluateRules(context) {
     try {
+        console.log('[RULES] Evaluating rules for context:', {
+            username: context.username,
+            ip_address: context.ip_address,
+            user_auth_methods: context.user_auth_methods
+        });
+        
         // Get all active rules ordered by priority
         const rules = await db.getRules({ is_enabled: true });
+        
+        console.log('[RULES] Found', rules.length, 'active rules');
         
         if (!rules || rules.length === 0) {
             // No rules - allow all user's registered methods
@@ -47,7 +55,9 @@ export async function evaluateRules(context) {
         
         // Evaluate each rule in priority order
         for (const rule of rules) {
+            console.log('[RULES] Evaluating rule:', rule.name, 'with conditions:', rule.conditions);
             const ruleMatches = evaluateConditions(rule.conditions, context);
+            console.log('[RULES] Rule', rule.name, 'matches:', ruleMatches);
             
             if (ruleMatches) {
                 result.appliedRules.push({
@@ -56,11 +66,13 @@ export async function evaluateRules(context) {
                     priority: rule.priority
                 });
                 
+                console.log('[RULES] Applying actions for rule', rule.name, ':', rule.actions);
                 // Apply actions
                 applyActions(rule.actions, result, context);
                 
                 // If access is blocked, stop processing
                 if (!result.allowed) {
+                    console.log('[RULES] Access blocked by rule:', rule.name);
                     break;
                 }
             }
@@ -233,6 +245,8 @@ function applyActions(actions, result, context) {
         return;
     }
     
+    console.log('[RULES] Applying actions:', actions);
+    
     // Handle both array format (from frontend) and object format (legacy)
     const actionsArray = Array.isArray(actions) ? actions : [actions];
     
@@ -241,11 +255,14 @@ function applyActions(actions, result, context) {
             continue;
         }
         
+        console.log('[RULES] Processing action:', action);
+        
         // Block access completely
         if (action.type === 'block_access') {
             result.allowed = false;
             result.blockReason = action.reason || 'Access denied by security rule';
             result.allowedMethods.clear();
+            console.log('[RULES] Access blocked, clearing all methods');
             return;
         }
         
@@ -258,11 +275,13 @@ function applyActions(actions, result, context) {
         
         // Allow only specific methods (whitelist)
         if (action.type === 'allow_methods' && Array.isArray(action.methods)) {
+            console.log('[RULES] Applying allow_methods:', action.methods);
             const allowedSet = new Set(action.methods);
             
             // Remove methods not in the whitelist
             for (const method of Array.from(result.allowedMethods)) {
                 if (!allowedSet.has(method)) {
+                    console.log('[RULES] Removing method:', method);
                     result.allowedMethods.delete(method);
                     result.deniedMethods.add(method);
                 }
@@ -271,12 +290,15 @@ function applyActions(actions, result, context) {
         
         // Deny specific auth methods
         if (action.type === 'deny_methods' && Array.isArray(action.methods)) {
+            console.log('[RULES] Applying deny_methods:', action.methods);
             action.methods.forEach(method => {
                 result.allowedMethods.delete(method);
                 result.deniedMethods.add(method);
             });
         }
     }
+    
+    console.log('[RULES] Final allowed methods:', Array.from(result.allowedMethods));
     
     // Check if no methods are left
     if (result.allowedMethods.size === 0) {
