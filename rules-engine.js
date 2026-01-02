@@ -388,8 +388,14 @@ async function checkIPMultiAccount(ipAddress, config) {
         const timeWindowMs = timeWindowMinutes * 60 * 1000;
         const since = new Date(Date.now() - timeWindowMs);
         
+        const pool = db.getPool();
+        if (!pool) {
+            console.warn('[RULES] No database pool available for IP multi-account check');
+            return false;
+        }
+        
         // Count distinct usernames from this IP within the time window
-        const result = await db.pool.query(
+        const result = await pool.query(
             `SELECT COUNT(DISTINCT username) as account_count 
              FROM auth_activity 
              WHERE ip_address = $1 
@@ -432,8 +438,14 @@ async function checkIPActivityThreshold(ipAddress, config) {
         const timeWindowMs = timeWindowMinutes * 60 * 1000;
         const since = new Date(Date.now() - timeWindowMs);
         
+        const pool = db.getPool();
+        if (!pool) {
+            console.warn('[RULES] No database pool available for IP activity threshold check');
+            return false;
+        }
+        
         // Count total activities from this IP within the time window
-        const result = await db.pool.query(
+        const result = await pool.query(
             `SELECT COUNT(*) as activity_count 
              FROM auth_activity 
              WHERE ip_address = $1 
@@ -486,8 +498,14 @@ async function checkUserCountryJump(username, config) {
         const timeWindowMs = timeWindowMinutes * 60 * 1000;
         const since = new Date(Date.now() - timeWindowMs);
         
+        const pool = db.getPool();
+        if (!pool) {
+            console.warn('[RULES] No database pool available for user country jump check');
+            return false;
+        }
+        
         // Get distinct countries for this user within the time window
-        const result = await db.pool.query(
+        const result = await pool.query(
             `SELECT DISTINCT geo_country 
              FROM auth_activity 
              WHERE username = $1 
