@@ -194,7 +194,7 @@ async function evaluateSingleCondition(condition, context) {
             return await checkIPMultiAccount(context.ip_address, value);
             
         case 'ip_activity_threshold':
-            return await checkIPActivityThreshold(context.ip_address, value);
+            return await checkIPActivityThreshold(context.ip_address, { ...value, operator });
             
         case 'user_country_jump':
             return await checkUserCountryJump(context.username, value);
