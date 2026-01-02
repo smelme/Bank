@@ -216,7 +216,7 @@ function renderRecentActivity(activities) {
                   : '<span class="badge badge-danger">Failed</span>'
                 }
               </td>
-              <td>${formatRelativeTime(activity.created_at)}</td>
+              <td>${formatRelativeTime(activity.timestamp)}</td>
             </tr>
           `).join('')}
         </tbody>
