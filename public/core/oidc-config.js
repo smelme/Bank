@@ -377,3 +377,21 @@ export async function signOut() {
   // Navigate to Keycloak logout (state already cleared)
   window.location.href = logoutUrl.toString();
 }
+
+/**
+ * Generate OIDC authorization URL for sign-in
+ */
+export function getAuthorizationUrl() {
+  const baseUrl = 'https://keycloak-production-5bd5.up.railway.app/realms/Tamange%20Bank/protocol/openid-connect/auth';
+  
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: 'tamange-web',
+    redirect_uri: window.location.origin + '/callback',
+    scope: 'openid profile email',
+    state: Math.random().toString(36).substring(2, 15),
+    nonce: Math.random().toString(36).substring(2, 15)
+  });
+  
+  return `${baseUrl}?${params.toString()}`;
+}

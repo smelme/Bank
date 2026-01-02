@@ -1,5 +1,6 @@
 import { requestCredentials } from '/lib/id-verifier.min.js';
 import { t } from '../core/i18n.js';
+import { getAuthorizationUrl } from '../core/oidc-config.js';
 
 let verifiedData = null;
 let selectedAccountType = null;
@@ -386,12 +387,13 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
 
         // Display success
         const accountDetails = document.getElementById('accountDetails');
+        const authUrl = getAuthorizationUrl();
         accountDetails.innerHTML = `
             <h3>Registration Successful!</h3>
             <div class="data-item"><span class="data-label">Username:</span><span class="data-value">${user.username}</span></div>
             <div class="data-item"><span class="data-label">Email:</span><span class="data-value">${user.email}</span></div>
             <div class="data-item"><span class="data-label">Name:</span><span class="data-value">${user.givenName} ${user.familyName}</span></div>
-            <p style="margin-top: 16px;">You can now <a href="/authorize">sign in</a> using your passkey or Digital ID.</p>
+            <p style="margin-top: 16px;">You can now <a href="${authUrl}">sign in</a> using your passkey or Digital ID.</p>
         `;
         
         showStep('step-confirm');
