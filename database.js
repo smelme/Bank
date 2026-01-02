@@ -1827,7 +1827,7 @@ export async function getActivityStats(filters = {}) {
             failed: parseInt(successResult.rows[0].failed),
             byMethod: methodResult.rows,
             byCountry: countryResult.rows,
-            recent: recentResult.rows
+            recentActivity: recentResult.rows
         };
     } catch (error) {
         console.error('Error getting activity stats:', error);
