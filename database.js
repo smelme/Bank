@@ -1515,7 +1515,7 @@ export async function createRule(ruleData) {
     
     try {
         const result = await pool.query(
-            `INSERT INTO auth_rules (name, description, conditions, actions, priority, is_active, created_by)
+            `INSERT INTO auth_rules (name, description, conditions, actions, priority, is_enabled, created_by)
              VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
             [
@@ -1610,7 +1610,7 @@ export async function updateRule(id, updates) {
             paramIndex++;
         }
         if (updates.is_active !== undefined) {
-            fields.push(`is_active = $${paramIndex}`);
+            fields.push(`is_enabled = $${paramIndex}`);
             values.push(updates.is_active);
             paramIndex++;
         }

@@ -3258,7 +3258,7 @@ app.get('/admin/rules/:id', authenticateAdmin, async (req, res) => {
  */
 app.post('/admin/rules', authenticateAdmin, express.json(), async (req, res) => {
     try {
-        const { name, description, conditions, actions, priority, is_active } = req.body;
+        const { name, description, conditions, actions, priority, is_enabled } = req.body;
         
         if (!name || !conditions || !actions) {
             return res.status(400).json({ error: 'Name, conditions, and actions are required' });
@@ -3270,11 +3270,11 @@ app.post('/admin/rules', authenticateAdmin, express.json(), async (req, res) => 
             conditions,
             actions,
             priority: priority || 0,
-            is_active: is_active !== false,
+            is_active: is_enabled !== false,
             created_by: req.admin.id
         });
         
-        res.json({ success: true, rule });
+        res.json({ rule });
     } catch (error) {
         console.error('Error creating rule:', error);
         res.status(500).json({ error: 'Failed to create rule' });
@@ -3293,10 +3293,10 @@ app.put('/admin/rules/:id', authenticateAdmin, express.json(), async (req, res) 
         if (req.body.conditions !== undefined) updates.conditions = req.body.conditions;
         if (req.body.actions !== undefined) updates.actions = req.body.actions;
         if (req.body.priority !== undefined) updates.priority = req.body.priority;
-        if (req.body.is_active !== undefined) updates.is_active = req.body.is_active;
+        if (req.body.is_enabled !== undefined) updates.is_active = req.body.is_enabled;
         
         const rule = await db.updateRule(req.params.id, updates);
-        res.json({ success: true, rule });
+        res.json({ rule });
     } catch (error) {
         console.error('Error updating rule:', error);
         res.status(500).json({ error: 'Failed to update rule' });
