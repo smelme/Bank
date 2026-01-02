@@ -137,6 +137,19 @@ async function evaluateSingleCondition(condition, context) {
         return false;
     }
     
+    // Handle special property-based conditions (IP activity threshold, multi-account, etc.)
+    if (fieldName === 'ip_activity_threshold') {
+        return await checkIPActivityThreshold(context.ip_address, { ...value, operator });
+    }
+    
+    if (fieldName === 'ip_multi_account') {
+        return await checkIPMultiAccount(context.ip_address, value);
+    }
+    
+    if (fieldName === 'user_country_jump') {
+        return await checkUserCountryJump(context.username, value);
+    }
+    
     // Map common property names to context field names
     const fieldMapping = {
         'country': 'geo_country',
@@ -189,15 +202,6 @@ async function evaluateSingleCondition(condition, context) {
             
         case 'country_not_in':
             return !Array.isArray(value) || !value.includes(context.geo_country);
-            
-        case 'ip_multi_account':
-            return await checkIPMultiAccount(context.ip_address, value);
-            
-        case 'ip_activity_threshold':
-            return await checkIPActivityThreshold(context.ip_address, { ...value, operator });
-            
-        case 'user_country_jump':
-            return await checkUserCountryJump(context.username, value);
             
         default:
             console.warn(`Unknown operator: ${operator}`);
