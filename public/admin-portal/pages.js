@@ -665,7 +665,7 @@ async function loadUsersTable(offset = 0) {
                 <td>${user.email || '-'}</td>
                 <td>${user.given_name && user.family_name ? `${user.given_name} ${user.family_name}` : '-'}</td>
                 <td>
-                  ${user.verified ?
+                  ${user.id_verified === true ?
                     '<span class="badge badge-success">Verified</span>' :
                     '<span class="badge badge-warning">Unverified</span>'
                   }
@@ -743,7 +743,7 @@ async function viewUserDetails(userId) {
                 <div><strong>Email:</strong> ${userData.email || 'Not provided'}</div>
                 <div><strong>Name:</strong> ${userData.given_name && userData.family_name ? `${userData.given_name} ${userData.family_name}` : 'Not provided'}</div>
                 <div><strong>Status:</strong>
-                  ${userData.id_verified ?
+                  ${userData.id_verified === true ?
                     '<span class="badge badge-success">Verified</span>' :
                     '<span class="badge badge-warning">Unverified</span>'
                   }
