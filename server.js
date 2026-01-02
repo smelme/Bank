@@ -3476,6 +3476,9 @@ app.get('/admin/users/:userId', authenticateAdmin, async (req, res) => {
             limit: 50
         });
         
+        // Get last successful login from activity
+        const lastLogin = activity.find(a => a.success)?.timestamp || null;
+        
         // Get auth method stats for this user
         const statsQuery = `
             SELECT 
@@ -3492,14 +3495,19 @@ app.get('/admin/users/:userId', authenticateAdmin, async (req, res) => {
             success: true,
             user: {
                 ...user,
+                // Add last login from activity
+                last_login_at: lastLogin,
                 // Remove sensitive data
                 password_hash: undefined,
                 face_descriptor: undefined
             },
-            passkeys: passkeys.map(pk => ({
+            passkeys: passkeys.map((pk, idx) => ({
                 id: pk.id,
                 credential_id: pk.credential_id,
-                friendly_name: pk.friendly_name,
+                friendly_name: pk.device_type ? 
+                    `${pk.device_type.charAt(0).toUpperCase() + pk.device_type.slice(1)} Passkey` : 
+                    `Passkey ${idx + 1}`,
+                device_type: pk.device_type,
                 created_at: pk.created_at,
                 last_used_at: pk.last_used_at
             })),
