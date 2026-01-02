@@ -831,20 +831,883 @@ async function viewUserDetails(userId) {
 
 // Rules Page - Placeholder for now
 async function loadRules() {
-  const pageContent = document.getElementById('page-content');
-  pageContent.innerHTML = `
-    <div class="page-header">
-      <h1>Rules Management</h1>
-      <p>Create and manage authentication rules</p>
-    </div>
-    <div class="card">
-      <div class="empty-state">
-        <i class="fas fa-cogs"></i>
-        <h3>Rules Management</h3>
-        <p>Rules management interface is under development</p>
+  const { fetchAPI, showNotification } = window.adminApp;
+
+  try {
+    const rules = await fetchAPI('/admin/rules');
+
+    const pageContent = document.getElementById('page-content');
+    pageContent.innerHTML = `
+      <div class="page-header">
+        <div class="header-content">
+          <div>
+            <h2>Authentication Rules</h2>
+            <p>Manage authentication policies and access control rules</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-outline" onclick="showTestRuleModal()">
+              <i class="fas fa-flask"></i> Test Rules
+            </button>
+            <button class="btn btn-primary" onclick="showCreateRuleModal()">
+              <i class="fas fa-plus"></i> Create Rule
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="rules-container">
+        ${rules.length === 0 ? `
+          <div class="empty-state">
+            <i class="fas fa-shield-alt"></i>
+            <h3>No Rules Created</h3>
+            <p>Create your first authentication rule to control access policies.</p>
+            <button class="btn btn-primary" onclick="showCreateRuleModal()">
+              <i class="fas fa-plus"></i> Create First Rule
+            </button>
+          </div>
+        ` : `
+          <div class="rules-list">
+            ${rules.map(rule => `
+              <div class="rule-card ${rule.is_enabled ? 'enabled' : 'disabled'}">
+                <div class="rule-header">
+                  <div class="rule-info">
+                    <h4>${rule.name}</h4>
+                    <span class="rule-type">${rule.rule_type}</span>
+                    <span class="rule-priority">Priority: ${rule.priority}</span>
+                  </div>
+                  <div class="rule-actions">
+                    <label class="toggle-switch">
+                      <input type="checkbox"
+                             ${rule.is_enabled ? 'checked' : ''}
+                             onchange="toggleRule('${rule.id}', this.checked)">
+                      <span class="toggle-slider"></span>
+                    </label>
+                    <button class="btn btn-sm btn-outline" onclick="editRule('${rule.id}')">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteRule('${rule.id}', '${rule.name}')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                </div>
+                <div class="rule-description">
+                  ${rule.description || 'No description'}
+                </div>
+                <div class="rule-details">
+                  <div class="rule-conditions">
+                    <strong>Conditions:</strong>
+                    <span class="condition-summary">${getConditionSummary(rule.conditions)}</span>
+                  </div>
+                  <div class="rule-actions-summary">
+                    <strong>Actions:</strong>
+                    <span class="action-summary">${getActionSummary(rule.actions)}</span>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+
+  } catch (error) {
+    console.error('Error loading rules:', error);
+    const pageContent = document.getElementById('page-content');
+    pageContent.innerHTML = `
+      <div class="page-header">
+        <h2>Authentication Rules</h2>
+        <p>Manage authentication policies and access control rules</p>
+      </div>
+      <div class="error-state">
+        <i class="fas fa-exclamation-triangle"></i>
+        <h3>Failed to Load Rules</h3>
+        <p>${error.message}</p>
+        <button class="btn btn-primary" onclick="loadRules()">
+          <i class="fas fa-refresh"></i> Retry
+        </button>
+      </div>
+    `;
+  }
+}
+
+// Helper function to summarize rule conditions
+function getConditionSummary(conditions) {
+  if (!conditions || !conditions.rules || conditions.rules.length === 0) {
+    return 'No conditions';
+  }
+
+  const count = conditions.rules.length;
+  const operator = conditions.operator || 'AND';
+  return `${count} condition${count > 1 ? 's' : ''} (${operator})`;
+}
+
+// Helper function to summarize rule actions
+function getActionSummary(actions) {
+  if (!actions || actions.length === 0) {
+    return 'No actions';
+  }
+
+  const summaries = actions.map(action => {
+    switch (action.type) {
+      case 'allow_methods':
+        return `Allow: ${action.methods.join(', ')}`;
+      case 'deny_methods':
+        return `Deny: ${action.methods.join(', ')}`;
+      case 'block_access':
+        return `Block access: ${action.reason || 'No reason'}`;
+      case 'require_2fa':
+        return 'Require 2FA';
+      default:
+        return action.type;
+    }
+  });
+
+  return summaries.join(', ');
+}
+
+// Rule management functions
+async function toggleRule(ruleId, enabled) {
+  const { fetchAPI, showNotification } = window.adminApp;
+
+  try {
+    await fetchAPI(`/admin/rules/${ruleId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ is_enabled: enabled })
+    });
+
+    showNotification(`Rule ${enabled ? 'enabled' : 'disabled'} successfully`, 'success');
+    loadRules(); // Refresh the list
+  } catch (error) {
+    console.error('Error toggling rule:', error);
+    showNotification(`Failed to ${enabled ? 'enable' : 'disable'} rule`, 'error');
+  }
+}
+
+async function deleteRule(ruleId, ruleName) {
+  const { fetchAPI, showNotification } = window.adminApp;
+
+  if (!confirm(`Are you sure you want to delete the rule "${ruleName}"? This action cannot be undone.`)) {
+    return;
+  }
+
+  try {
+    await fetchAPI(`/admin/rules/${ruleId}`, {
+      method: 'DELETE'
+    });
+
+    showNotification('Rule deleted successfully', 'success');
+    loadRules(); // Refresh the list
+  } catch (error) {
+    console.error('Error deleting rule:', error);
+    showNotification('Failed to delete rule', 'error');
+  }
+}
+
+function showCreateRuleModal() {
+  showRuleModal();
+}
+
+async function editRule(ruleId) {
+  const { fetchAPI, showNotification } = window.adminApp;
+
+  try {
+    const rule = await fetchAPI(`/admin/rules/${ruleId}`);
+    showRuleModal(rule);
+  } catch (error) {
+    console.error('Error loading rule for editing:', error);
+    showNotification('Failed to load rule for editing', 'error');
+  }
+}
+
+function showRuleModal(rule = null) {
+  const isEditing = !!rule;
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+
+  modal.innerHTML = `
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h3>${isEditing ? 'Edit Rule' : 'Create New Rule'}</h3>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="rule-form" onsubmit="handleRuleSubmit(event, '${rule?.id || ''}')">
+          <div class="form-section">
+            <h4>Basic Information</h4>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rule-name">Rule Name *</label>
+                <input type="text" id="rule-name" name="name" required
+                       value="${rule?.name || ''}" placeholder="e.g., Block suspicious IPs">
+              </div>
+              <div class="form-group">
+                <label for="rule-type">Rule Type</label>
+                <select id="rule-type" name="rule_type">
+                  <option value="access_control" ${rule?.rule_type === 'access_control' ? 'selected' : ''}>Access Control</option>
+                  <option value="authentication_policy" ${rule?.rule_type === 'authentication_policy' ? 'selected' : ''}>Authentication Policy</option>
+                  <option value="security_policy" ${rule?.rule_type === 'security_policy' ? 'selected' : ''}>Security Policy</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="rule-description">Description</label>
+              <textarea id="rule-description" name="description" rows="3"
+                        placeholder="Describe what this rule does...">${rule?.description || ''}</textarea>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="rule-priority">Priority</label>
+                <input type="number" id="rule-priority" name="priority" min="1" max="100"
+                       value="${rule?.priority || 50}" placeholder="1-100 (higher = more important)">
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="rule-enabled" name="is_enabled" ${rule?.is_enabled !== false ? 'checked' : ''}>
+                  <span>Rule Enabled</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h4>Conditions</h4>
+            <p class="form-help">Define when this rule should be applied. All conditions must match (AND logic).</p>
+            <div id="conditions-container">
+              ${rule?.conditions?.rules ? rule.conditions.rules.map((condition, index) => `
+                <div class="condition-item" data-index="${index}">
+                  <div class="condition-header">
+                    <span class="condition-label">Condition ${index + 1}</span>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeCondition(${index})">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                  <div class="condition-fields">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Property</label>
+                        <select name="conditions[${index}][property]">
+                          <option value="ip_address" ${condition.property === 'ip_address' ? 'selected' : ''}>IP Address</option>
+                          <option value="user_agent" ${condition.property === 'user_agent' ? 'selected' : ''}>User Agent</option>
+                          <option value="auth_method" ${condition.property === 'auth_method' ? 'selected' : ''}>Auth Method</option>
+                          <option value="country" ${condition.property === 'country' ? 'selected' : ''}>Country</option>
+                          <option value="time_of_day" ${condition.property === 'time_of_day' ? 'selected' : ''}>Time of Day</option>
+                          <option value="user_verified" ${condition.property === 'user_verified' ? 'selected' : ''}>User Verified</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Operator</label>
+                        <select name="conditions[${index}][operator]">
+                          <option value="equals" ${condition.operator === 'equals' ? 'selected' : ''}>Equals</option>
+                          <option value="not_equals" ${condition.operator === 'not_equals' ? 'selected' : ''}>Not Equals</option>
+                          <option value="contains" ${condition.operator === 'contains' ? 'selected' : ''}>Contains</option>
+                          <option value="not_contains" ${condition.operator === 'not_contains' ? 'selected' : ''}>Not Contains</option>
+                          <option value="in_list" ${condition.operator === 'in_list' ? 'selected' : ''}>In List</option>
+                          <option value="not_in_list" ${condition.operator === 'not_in_list' ? 'selected' : ''}>Not In List</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Value</label>
+                      <input type="text" name="conditions[${index}][value]"
+                             value="${condition.value || ''}" placeholder="Enter value or comma-separated list">
+                    </div>
+                  </div>
+                </div>
+              `).join('') : `
+                <div class="condition-item" data-index="0">
+                  <div class="condition-header">
+                    <span class="condition-label">Condition 1</span>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeCondition(0)">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                  <div class="condition-fields">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Property</label>
+                        <select name="conditions[0][property]">
+                          <option value="ip_address">IP Address</option>
+                          <option value="user_agent">User Agent</option>
+                          <option value="auth_method">Auth Method</option>
+                          <option value="country">Country</option>
+                          <option value="time_of_day">Time of Day</option>
+                          <option value="user_verified">User Verified</option>
+                        </select>
+                      </div>
+                      <div class="form-group">
+                        <label>Operator</label>
+                        <select name="conditions[0][operator]">
+                          <option value="equals">Equals</option>
+                          <option value="not_equals">Not Equals</option>
+                          <option value="contains">Contains</option>
+                          <option value="not_contains">Not Contains</option>
+                          <option value="in_list">In List</option>
+                          <option value="not_in_list">Not In List</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="form-group">
+                      <label>Value</label>
+                      <input type="text" name="conditions[0][value]" placeholder="Enter value or comma-separated list">
+                    </div>
+                  </div>
+                </div>
+              `}
+            </div>
+            <button type="button" class="btn btn-outline" onclick="addCondition()">
+              <i class="fas fa-plus"></i> Add Condition
+            </button>
+          </div>
+
+          <div class="form-section">
+            <h4>Actions</h4>
+            <p class="form-help">Define what happens when the conditions are met.</p>
+            <div id="actions-container">
+              ${rule?.actions ? rule.actions.map((action, index) => `
+                <div class="action-item" data-index="${index}">
+                  <div class="action-header">
+                    <span class="action-label">Action ${index + 1}</span>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeAction(${index})">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                  <div class="action-fields">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Action Type</label>
+                        <select name="actions[${index}][type]" onchange="onActionTypeChange(this, ${index})">
+                          <option value="allow_methods" ${action.type === 'allow_methods' ? 'selected' : ''}>Allow Methods</option>
+                          <option value="deny_methods" ${action.type === 'deny_methods' ? 'selected' : ''}>Deny Methods</option>
+                          <option value="block_access" ${action.type === 'block_access' ? 'selected' : ''}>Block Access</option>
+                          <option value="require_2fa" ${action.type === 'require_2fa' ? 'selected' : ''}>Require 2FA</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="action-params" id="action-params-${index}">
+                      ${getActionParamsHTML(action, index)}
+                    </div>
+                  </div>
+                </div>
+              `).join('') : `
+                <div class="action-item" data-index="0">
+                  <div class="action-header">
+                    <span class="action-label">Action 1</span>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeAction(0)">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+                  <div class="action-fields">
+                    <div class="form-row">
+                      <div class="form-group">
+                        <label>Action Type</label>
+                        <select name="actions[0][type]" onchange="onActionTypeChange(this, 0)">
+                          <option value="allow_methods">Allow Methods</option>
+                          <option value="deny_methods">Deny Methods</option>
+                          <option value="block_access">Block Access</option>
+                          <option value="require_2fa">Require 2FA</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="action-params" id="action-params-0">
+                      <div class="form-group">
+                        <label>Methods</label>
+                        <div class="checkbox-group">
+                          <label><input type="checkbox" name="actions[0][methods][]" value="passkey"> Passkey</label>
+                          <label><input type="checkbox" name="actions[0][methods][]" value="digitalid"> Digital ID</label>
+                          <label><input type="checkbox" name="actions[0][methods][]" value="email_otp"> Email OTP</label>
+                          <label><input type="checkbox" name="actions[0][methods][]" value="sms_otp"> SMS OTP</label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              `}
+            </div>
+            <button type="button" class="btn btn-outline" onclick="addAction()">
+              <i class="fas fa-plus"></i> Add Action
+            </button>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              ${isEditing ? 'Update Rule' : 'Create Rule'}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   `;
+
+  document.body.appendChild(modal);
+}
+
+// Helper function to get action parameters HTML
+function getActionParamsHTML(action, index) {
+  switch (action.type) {
+    case 'allow_methods':
+    case 'deny_methods':
+      const methods = action.methods || [];
+      return `
+        <div class="form-group">
+          <label>Methods</label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="passkey" ${methods.includes('passkey') ? 'checked' : ''}> Passkey</label>
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="digitalid" ${methods.includes('digitalid') ? 'checked' : ''}> Digital ID</label>
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="email_otp" ${methods.includes('email_otp') ? 'checked' : ''}> Email OTP</label>
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="sms_otp" ${methods.includes('sms_otp') ? 'checked' : ''}> SMS OTP</label>
+          </div>
+        </div>
+      `;
+    case 'block_access':
+      return `
+        <div class="form-group">
+          <label>Block Reason</label>
+          <input type="text" name="actions[${index}][reason]" value="${action.reason || ''}" placeholder="Reason for blocking access">
+        </div>
+      `;
+    case 'require_2fa':
+      return '<p class="form-help">This action will require 2FA for the user.</p>';
+    default:
+      return '';
+  }
+}
+
+// Condition and action management functions
+function addCondition() {
+  const container = document.getElementById('conditions-container');
+  const index = container.children.length;
+
+  const conditionHTML = `
+    <div class="condition-item" data-index="${index}">
+      <div class="condition-header">
+        <span class="condition-label">Condition ${index + 1}</span>
+        <button type="button" class="btn btn-sm btn-danger" onclick="removeCondition(${index})">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+      <div class="condition-fields">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Property</label>
+            <select name="conditions[${index}][property]">
+              <option value="ip_address">IP Address</option>
+              <option value="user_agent">User Agent</option>
+              <option value="auth_method">Auth Method</option>
+              <option value="country">Country</option>
+              <option value="time_of_day">Time of Day</option>
+              <option value="user_verified">User Verified</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Operator</label>
+            <select name="conditions[${index}][operator]">
+              <option value="equals">Equals</option>
+              <option value="not_equals">Not Equals</option>
+              <option value="contains">Contains</option>
+              <option value="not_contains">Not Contains</option>
+              <option value="in_list">In List</option>
+              <option value="not_in_list">Not In List</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Value</label>
+          <input type="text" name="conditions[${index}][value]" placeholder="Enter value or comma-separated list">
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', conditionHTML);
+}
+
+function removeCondition(index) {
+  const container = document.getElementById('conditions-container');
+  const condition = container.querySelector(`[data-index="${index}"]`);
+  if (condition) {
+    condition.remove();
+    // Re-index remaining conditions
+    const conditions = container.querySelectorAll('.condition-item');
+    conditions.forEach((cond, i) => {
+      cond.setAttribute('data-index', i);
+      cond.querySelector('.condition-label').textContent = `Condition ${i + 1}`;
+      cond.querySelector('button').setAttribute('onclick', `removeCondition(${i})`);
+      // Update form field names
+      const selects = cond.querySelectorAll('select');
+      const inputs = cond.querySelectorAll('input');
+      selects.forEach(select => {
+        const name = select.getAttribute('name').replace(/\[\d+\]/, `[${i}]`);
+        select.setAttribute('name', name);
+      });
+      inputs.forEach(input => {
+        const name = input.getAttribute('name').replace(/\[\d+\]/, `[${i}]`);
+        input.setAttribute('name', name);
+      });
+    });
+  }
+}
+
+function addAction() {
+  const container = document.getElementById('actions-container');
+  const index = container.children.length;
+
+  const actionHTML = `
+    <div class="action-item" data-index="${index}">
+      <div class="action-header">
+        <span class="action-label">Action ${index + 1}</span>
+        <button type="button" class="btn btn-sm btn-danger" onclick="removeAction(${index})">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+      <div class="action-fields">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Action Type</label>
+            <select name="actions[${index}][type]" onchange="onActionTypeChange(this, ${index})">
+              <option value="allow_methods">Allow Methods</option>
+              <option value="deny_methods">Deny Methods</option>
+              <option value="block_access">Block Access</option>
+              <option value="require_2fa">Require 2FA</option>
+            </select>
+          </div>
+        </div>
+        <div class="action-params" id="action-params-${index}">
+          <div class="form-group">
+            <label>Methods</label>
+            <div class="checkbox-group">
+              <label><input type="checkbox" name="actions[${index}][methods][]" value="passkey"> Passkey</label>
+              <label><input type="checkbox" name="actions[${index}][methods][]" value="digitalid"> Digital ID</label>
+              <label><input type="checkbox" name="actions[${index}][methods][]" value="email_otp"> Email OTP</label>
+              <label><input type="checkbox" name="actions[${index}][methods][]" value="sms_otp"> SMS OTP</label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', actionHTML);
+}
+
+function removeAction(index) {
+  const container = document.getElementById('actions-container');
+  const action = container.querySelector(`[data-index="${index}"]`);
+  if (action) {
+    action.remove();
+    // Re-index remaining actions
+    const actions = container.querySelectorAll('.action-item');
+    actions.forEach((act, i) => {
+      act.setAttribute('data-index', i);
+      act.querySelector('.action-label').textContent = `Action ${i + 1}`;
+      act.querySelector('select').setAttribute('onchange', `onActionTypeChange(this, ${i})`);
+      // Update form field names
+      const selects = act.querySelectorAll('select');
+      const inputs = act.querySelectorAll('input');
+      selects.forEach(select => {
+        const name = select.getAttribute('name').replace(/\[\d+\]/, `[${i}]`);
+        select.setAttribute('name', name);
+      });
+      inputs.forEach(input => {
+        const name = input.getAttribute('name').replace(/\[\d+\]/, `[${i}]`);
+        input.setAttribute('name', name);
+      });
+    });
+  }
+}
+
+function onActionTypeChange(select, index) {
+  const actionType = select.value;
+  const paramsContainer = document.getElementById(`action-params-${index}`);
+
+  let paramsHTML = '';
+  switch (actionType) {
+    case 'allow_methods':
+    case 'deny_methods':
+      paramsHTML = `
+        <div class="form-group">
+          <label>Methods</label>
+          <div class="checkbox-group">
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="passkey"> Passkey</label>
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="digitalid"> Digital ID</label>
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="email_otp"> Email OTP</label>
+            <label><input type="checkbox" name="actions[${index}][methods][]" value="sms_otp"> SMS OTP</label>
+          </div>
+        </div>
+      `;
+      break;
+    case 'block_access':
+      paramsHTML = `
+        <div class="form-group">
+          <label>Block Reason</label>
+          <input type="text" name="actions[${index}][reason]" placeholder="Reason for blocking access">
+        </div>
+      `;
+      break;
+    case 'require_2fa':
+      paramsHTML = '<p class="form-help">This action will require 2FA for the user.</p>';
+      break;
+  }
+
+  paramsContainer.innerHTML = paramsHTML;
+}
+
+async function handleRuleSubmit(event, ruleId) {
+  event.preventDefault();
+  const { fetchAPI, showNotification } = window.adminApp;
+
+  const formData = new FormData(event.target);
+  const ruleData = {
+    name: formData.get('name'),
+    rule_type: formData.get('rule_type'),
+    description: formData.get('description'),
+    priority: parseInt(formData.get('priority')) || 50,
+    is_enabled: formData.has('is_enabled')
+  };
+
+  // Parse conditions
+  const conditions = [];
+  let conditionIndex = 0;
+  while (true) {
+    const property = formData.get(`conditions[${conditionIndex}][property]`);
+    if (!property) break;
+
+    conditions.push({
+      property,
+      operator: formData.get(`conditions[${conditionIndex}][operator]`),
+      value: formData.get(`conditions[${conditionIndex}][value]`)
+    });
+    conditionIndex++;
+  }
+
+  ruleData.conditions = {
+    operator: 'AND', // For now, always AND
+    rules: conditions
+  };
+
+  // Parse actions
+  const actions = [];
+  let actionIndex = 0;
+  while (true) {
+    const type = formData.get(`actions[${actionIndex}][type]`);
+    if (!type) break;
+
+    const action = { type };
+
+    if (type === 'allow_methods' || type === 'deny_methods') {
+      const methods = formData.getAll(`actions[${actionIndex}][methods][]`);
+      action.methods = methods;
+    } else if (type === 'block_access') {
+      action.reason = formData.get(`actions[${actionIndex}][reason]`);
+    }
+
+    actions.push(action);
+    actionIndex++;
+  }
+
+  ruleData.actions = actions;
+
+  try {
+    if (ruleId) {
+      // Update existing rule
+      await fetchAPI(`/admin/rules/${ruleId}`, {
+        method: 'PUT',
+        body: JSON.stringify(ruleData)
+      });
+      showNotification('Rule updated successfully', 'success');
+    } else {
+      // Create new rule
+      await fetchAPI('/admin/rules', {
+        method: 'POST',
+        body: JSON.stringify(ruleData)
+      });
+      showNotification('Rule created successfully', 'success');
+    }
+
+    // Close modal and refresh rules list
+    event.target.closest('.modal-overlay').remove();
+    loadRules();
+  } catch (error) {
+    console.error('Error saving rule:', error);
+    showNotification(`Failed to ${ruleId ? 'update' : 'create'} rule`, 'error');
+  }
+}
+
+function showTestRuleModal() {
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.onclick = (e) => {
+    if (e.target === modal) modal.remove();
+  };
+
+  modal.innerHTML = `
+    <div class="modal-content large">
+      <div class="modal-header">
+        <h3>Test Authentication Rules</h3>
+        <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="test-rule-form" onsubmit="handleRuleTest(event)">
+          <div class="form-section">
+            <h4>Test Context</h4>
+            <p class="form-help">Enter the authentication context to test against your rules.</p>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="test-ip">IP Address</label>
+                <input type="text" id="test-ip" name="ip_address" placeholder="192.168.1.1">
+              </div>
+              <div class="form-group">
+                <label for="test-country">Country</label>
+                <input type="text" id="test-country" name="country" placeholder="US">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="test-auth-method">Auth Method</label>
+                <select id="test-auth-method" name="auth_method">
+                  <option value="">Select method...</option>
+                  <option value="passkey">Passkey</option>
+                  <option value="digitalid">Digital ID</option>
+                  <option value="email_otp">Email OTP</option>
+                  <option value="sms_otp">SMS OTP</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="test-user-agent">User Agent</label>
+                <input type="text" id="test-user-agent" name="user_agent" placeholder="Mozilla/5.0...">
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="test-time">Time of Day (HH:MM)</label>
+                <input type="time" id="test-time" name="time_of_day">
+              </div>
+              <div class="form-group">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="test-user-verified" name="user_verified">
+                  <span>User Verified</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-play"></i> Run Test
+            </button>
+          </div>
+        </form>
+
+        <div id="test-results" class="test-results" style="display: none;">
+          <h4>Test Results</h4>
+          <div id="test-output"></div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+}
+
+async function handleRuleTest(event) {
+  event.preventDefault();
+  const { fetchAPI, showNotification } = window.adminApp;
+
+  const formData = new FormData(event.target);
+  const testContext = {
+    ip_address: formData.get('ip_address') || undefined,
+    country: formData.get('country') || undefined,
+    auth_method: formData.get('auth_method') || undefined,
+    user_agent: formData.get('user_agent') || undefined,
+    time_of_day: formData.get('time_of_day') || undefined,
+    user_verified: formData.has('user_verified')
+  };
+
+  // Remove undefined values
+  Object.keys(testContext).forEach(key => {
+    if (testContext[key] === undefined) {
+      delete testContext[key];
+    }
+  });
+
+  try {
+    const result = await fetchAPI('/admin/test-rule', {
+      method: 'POST',
+      body: JSON.stringify({ context: testContext })
+    });
+
+    displayTestResults(result);
+  } catch (error) {
+    console.error('Error testing rules:', error);
+    showNotification('Failed to test rules', 'error');
+  }
+}
+
+function displayTestResults(result) {
+  const resultsDiv = document.getElementById('test-results');
+  const outputDiv = document.getElementById('test-output');
+
+  let html = `
+    <div class="test-summary">
+      <div class="summary-item">
+        <strong>Access Allowed:</strong>
+        <span class="badge ${result.allowed ? 'badge-success' : 'badge-danger'}">
+          ${result.allowed ? 'Yes' : 'No'}
+        </span>
+      </div>
+      ${result.blockReason ? `
+        <div class="summary-item">
+          <strong>Block Reason:</strong> ${result.blockReason}
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="test-details">
+      <div class="methods-section">
+        <h5>Allowed Methods</h5>
+        <div class="methods-list">
+          ${result.allowedMethods.length > 0 ?
+            result.allowedMethods.map(method => `<span class="method-tag">${method}</span>`).join('') :
+            '<span class="no-methods">None</span>'
+          }
+        </div>
+      </div>
+
+      <div class="methods-section">
+        <h5>Denied Methods</h5>
+        <div class="methods-list">
+          ${result.deniedMethods.length > 0 ?
+            result.deniedMethods.map(method => `<span class="method-tag denied">${method}</span>`).join('') :
+            '<span class="no-methods">None</span>'
+          }
+        </div>
+      </div>
+
+      ${result.appliedRules.length > 0 ? `
+        <div class="applied-rules">
+          <h5>Applied Rules</h5>
+          <div class="rules-list">
+            ${result.appliedRules.map(rule => `
+              <div class="applied-rule">
+                <strong>${rule.name}</strong> (Priority: ${rule.priority})
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      ` : ''}
+    </div>
+  `;
+
+  outputDiv.innerHTML = html;
+  resultsDiv.style.display = 'block';
 }
 
 // Export functions to window

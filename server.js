@@ -3317,6 +3317,37 @@ app.delete('/admin/rules/:id', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * POST /admin/test-rule - Test rules against a context
+ */
+app.post('/admin/test-rule', authenticateAdmin, express.json(), async (req, res) => {
+    try {
+        const { context } = req.body;
+
+        if (!context) {
+            return res.status(400).json({ error: 'Context is required' });
+        }
+
+        // Evaluate rules with the provided context
+        const result = await rulesEngine.evaluateRules(context);
+
+        res.json({
+            allowed: result.allowed,
+            blockReason: result.blockReason,
+            allowedMethods: result.allowedMethods,
+            deniedMethods: result.deniedMethods,
+            appliedRules: result.rulesApplied.map(rule => ({
+                id: rule.id,
+                name: rule.name,
+                priority: rule.priority
+            }))
+        });
+    } catch (error) {
+        console.error('Error testing rules:', error);
+        res.status(500).json({ error: 'Failed to test rules' });
+    }
+});
+
+/**
  * GET /admin/activity - Get activity logs
  */
 app.get('/admin/activity', authenticateAdmin, async (req, res) => {
