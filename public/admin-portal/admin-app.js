@@ -24,33 +24,35 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initializeApp() {
-  // Check if we have a token
-  if (appState.token) {
-    try {
-      // Verify token and get admin info
-      const admin = await fetchAPI('/admin/me');
-      appState.admin = admin;
-      
-      // Start token refresh interval
-      startTokenRefresh();
-      
-      showApp();
-      
-      // Restore last page or default to dashboard
-      const lastPage = localStorage.getItem('admin_last_page') || 'dashboard';
-      loadPage(lastPage);
-    } catch (error) {
-      // Token invalid, show login
-      appState.token = null;
-      localStorage.removeItem('admin_token');
+  try {
+    // Check if we have a token
+    if (appState.token) {
+      try {
+        // Verify token and get admin info
+        const admin = await fetchAPI('/admin/me');
+        appState.admin = admin;
+
+        // Start token refresh interval
+        startTokenRefresh();
+
+        showApp();
+
+        // Restore last page or default to dashboard
+        const lastPage = localStorage.getItem('admin_last_page') || 'dashboard';
+        loadPage(lastPage);
+      } catch (error) {
+        // Token invalid, show login
+        appState.token = null;
+        localStorage.removeItem('admin_token');
+        showLogin();
+      }
+    } else {
       showLogin();
     }
-  } else {
-    showLogin();
+  } finally {
+    // Always hide loading screen regardless of auth state
+    document.getElementById('loading-screen').classList.add('hidden');
   }
-  
-  // Hide loading screen
-  document.getElementById('loading-screen').classList.add('hidden');
 }
 
 // ==================== Token Refresh ====================
