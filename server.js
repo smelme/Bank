@@ -3297,7 +3297,12 @@ app.get('/admin/activity', authenticateAdmin, async (req, res) => {
         if (req.query.limit) filters.limit = parseInt(req.query.limit);
         if (req.query.offset) filters.offset = parseInt(req.query.offset);
         
+        console.log('[ADMIN] Activity query filters:', JSON.stringify(filters, null, 2));
+        
         const activity = await db.getActivity(filters);
+        
+        console.log('[ADMIN] Activity results:', activity.length, 'records');
+        
         res.json({ success: true, activity, count: activity.length });
     } catch (error) {
         console.error('Error getting activity:', error);

@@ -1687,6 +1687,8 @@ export async function logActivity(activityData) {
 export async function getActivity(filters = {}) {
     if (!pool) return [];
     
+    console.log('[DB] getActivity called with filters:', JSON.stringify(filters, null, 2));
+    
     try {
         let query = 'SELECT * FROM auth_activity WHERE 1=1';
         const params = [];
@@ -1747,7 +1749,13 @@ export async function getActivity(filters = {}) {
             params.push(filters.offset);
         }
         
+        console.log('[DB] Executing query:', query);
+        console.log('[DB] With params:', params);
+        
         const result = await pool.query(query, params);
+        
+        console.log('[DB] Query returned:', result.rows.length, 'rows');
+        
         return result.rows;
     } catch (error) {
         console.error('Error getting activity:', error);
