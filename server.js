@@ -3468,7 +3468,7 @@ app.get('/admin/users/:userId', authenticateAdmin, async (req, res) => {
         }
         
         // Get user's passkeys
-        const passkeys = await db.getPasskeysByUserId(req.params.userId);
+        const passkeys = await db.getUserPasskeyCredentials(req.params.userId);
         
         // Get user's recent activity (last 50)
         const activity = await db.getActivity({
