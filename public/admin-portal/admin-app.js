@@ -35,7 +35,10 @@ async function initializeApp() {
       startTokenRefresh();
       
       showApp();
-      loadPage('dashboard');
+      
+      // Restore last page or default to dashboard
+      const lastPage = localStorage.getItem('admin_last_page') || 'dashboard';
+      loadPage(lastPage);
     } catch (error) {
       // Token invalid, show login
       appState.token = null;
@@ -173,6 +176,7 @@ function handleLogout() {
 
 // ==================== App Display ====================
 function showApp() {
+  document.getElementById('login-page').classList.add('hidden');
   document.getElementById('app-container').classList.remove('hidden');
   
   // Update admin info display
@@ -197,6 +201,9 @@ function showApp() {
 // ==================== Page Loading ====================
 async function loadPage(pageName) {
   appState.currentPage = pageName;
+  
+  // Save current page to localStorage for restore on refresh
+  localStorage.setItem('admin_last_page', pageName);
   
   // Update active nav item
   document.querySelectorAll('.nav-item').forEach(item => {
