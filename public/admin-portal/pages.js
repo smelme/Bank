@@ -930,15 +930,60 @@ async function loadRules() {
   }
 }
 
-// Helper function to summarize rule conditions
-function getConditionSummary(conditions) {
-  if (!conditions || !conditions.rules || conditions.rules.length === 0) {
-    return 'No conditions';
-  }
-
-  const count = conditions.rules.length;
-  const operator = conditions.operator || 'AND';
-  return `${count} condition${count > 1 ? 's' : ''} (${operator})`;
+// Helper function to get condition value inputs based on property type
+function getConditionValueInputs(condition, index) {
+    const property = condition.property;
+    const value = condition.value || {};
+    
+    switch (property) {
+        case 'ip_multi_account':
+            return `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Account Threshold</label>
+                        <input type="number" name="conditions[${index}][value][accountThreshold]" 
+                               value="${value.accountThreshold || 3}" min="2" placeholder="Min accounts">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Window (minutes)</label>
+                        <input type="number" name="conditions[${index}][value][timeWindowMinutes]" 
+                               value="${value.timeWindowMinutes || 10}" min="1" placeholder="Minutes">
+                    </div>
+                </div>
+            `;
+            
+        case 'ip_activity_threshold':
+            return `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Activity Threshold</label>
+                        <input type="number" name="conditions[${index}][value][activityThreshold]" 
+                               value="${value.activityThreshold || 10}" min="0" placeholder="Number of activities">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Window (minutes)</label>
+                        <input type="number" name="conditions[${index}][value][timeWindowMinutes]" 
+                               value="${value.timeWindowMinutes || 30}" min="1" placeholder="Minutes">
+                    </div>
+                </div>
+            `;
+            
+        case 'user_country_jump':
+            return `
+                <div class="form-group">
+                    <label>Time Window (minutes)</label>
+                    <input type="number" name="conditions[${index}][value][timeWindowMinutes]" 
+                           value="${value.timeWindowMinutes || 30}" min="1" placeholder="Minutes">
+                </div>
+            `;
+            
+        default:
+            return `<div class="form-group">
+                <label>Value</label>
+                <input type="text" name="conditions[${index}][value]" 
+                       value="${typeof value === 'string' ? value : ''}" placeholder="Enter value or comma-separated list">
+            </div>`;
+    }
 }
 
 // Helper function to summarize rule actions
@@ -1103,22 +1148,13 @@ function showRuleModal(rule = null) {
                       </div>
                       <div class="form-group">
                         <label>Operator</label>
-                        <select name="conditions[${index}][operator]">
-                          <option value="equals" ${condition.operator === 'equals' ? 'selected' : ''}>Equals</option>
-                          <option value="not_equals" ${condition.operator === 'not_equals' ? 'selected' : ''}>Not Equals</option>
-                          <option value="contains" ${condition.operator === 'contains' ? 'selected' : ''}>Contains</option>
-                          <option value="not_contains" ${condition.operator === 'not_contains' ? 'selected' : ''}>Not Contains</option>
-                          <option value="in_list" ${condition.operator === 'in_list' ? 'selected' : ''}>In List</option>
-                          <option value="not_in_list" ${condition.operator === 'not_in_list' ? 'selected' : ''}>Not In List</option>
+                        <select name="conditions[${index}][operator]" onchange="onConditionPropertyChange(this, ${index})">
+                          ${getOperatorOptions(condition.property, condition.operator)}
                         </select>
                       </div>
                     </div>
                     <div class="condition-value-container">
-                      <div class="form-group">
-                        <label>Value</label>
-                        <input type="text" name="conditions[${index}][value]"
-                               value="${condition.value || ''}" placeholder="Enter value or comma-separated list">
-                      </div>
+                      ${getConditionValueInputs(condition, index)}
                     </div>
                   </div>
                 </div>
@@ -1499,7 +1535,8 @@ async function handleRuleSubmit(event, ruleId) {
     } else if (property === 'ip_activity_threshold') {
       value = {
         activityThreshold: parseInt(formData.get(`conditions[${conditionIndex}][value][activityThreshold]`)) || 10,
-        timeWindowMinutes: parseInt(formData.get(`conditions[${conditionIndex}][value][timeWindowMinutes]`)) || 5
+        timeWindowMinutes: parseInt(formData.get(`conditions[${conditionIndex}][value][timeWindowMinutes]`)) || 30,
+        operator: formData.get(`conditions[${conditionIndex}][operator]`) || 'gt'
       };
     } else if (property === 'user_country_jump') {
       value = {
@@ -1777,13 +1814,20 @@ function onConditionPropertyChange(selectElement, conditionIndex) {
             break;
             
         case 'ip_activity_threshold':
-            operators = [{ value: 'exceeds_threshold', label: 'Exceeds Threshold' }];
+            operators = [
+                { value: 'gt', label: 'Greater Than' },
+                { value: 'gte', label: 'Greater Than or Equal' },
+                { value: 'lt', label: 'Less Than' },
+                { value: 'lte', label: 'Less Than or Equal' },
+                { value: 'eq', label: 'Equals' },
+                { value: 'neq', label: 'Not Equals' }
+            ];
             valueInput = `
                 <div class="form-row">
                     <div class="form-group">
                         <label>Activity Threshold</label>
                         <input type="number" name="conditions[${conditionIndex}][value][activityThreshold]" 
-                               value="10" min="1" placeholder="Max activities">
+                               value="10" min="0" placeholder="Number of activities">
                     </div>
                     <div class="form-group">
                         <label>Time Window (minutes)</label>

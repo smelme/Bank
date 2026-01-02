@@ -407,17 +407,22 @@ async function checkIPMultiAccount(ipAddress, config) {
 /**
  * Check if an IP address has exceeded activity threshold within a time window
  * @param {string} ipAddress - IP address to check
- * @param {Object} config - Configuration with threshold and timeWindow
- * @param {number} config.activityThreshold - Maximum number of activities allowed
+ * @param {Object} config - Configuration with threshold, timeWindow, and operator
+ * @param {number} config.activityThreshold - Number of activities to compare against
  * @param {number} config.timeWindowMinutes - Time window in minutes
- * @returns {boolean} Whether the condition is met (threshold exceeded)
+ * @param {string} config.operator - Comparison operator: 'gt', 'gte', 'lt', 'lte', 'eq', 'neq'
+ * @returns {boolean} Whether the condition is met
  */
 async function checkIPActivityThreshold(ipAddress, config) {
     if (!ipAddress || !config || typeof config !== 'object') {
         return false;
     }
     
-    const { activityThreshold = 10, timeWindowMinutes = 5 } = config;
+    const { 
+        activityThreshold = 10, 
+        timeWindowMinutes = 5,
+        operator = 'gt'  // Default to greater than
+    } = config;
     
     try {
         const timeWindowMs = timeWindowMinutes * 60 * 1000;
@@ -433,9 +438,26 @@ async function checkIPActivityThreshold(ipAddress, config) {
         );
         
         const activityCount = parseInt(result.rows[0].activity_count);
-        console.log(`[RULES] IP ${ipAddress} has ${activityCount} activities in last ${timeWindowMinutes} minutes (threshold: ${activityThreshold})`);
+        console.log(`[RULES] IP ${ipAddress} has ${activityCount} activities in last ${timeWindowMinutes} minutes (threshold: ${activityThreshold}, operator: ${operator})`);
         
-        return activityCount > activityThreshold;
+        // Apply the comparison operator
+        switch (operator) {
+            case 'gt':
+                return activityCount > activityThreshold;
+            case 'gte':
+                return activityCount >= activityThreshold;
+            case 'lt':
+                return activityCount < activityThreshold;
+            case 'lte':
+                return activityCount <= activityThreshold;
+            case 'eq':
+                return activityCount === activityThreshold;
+            case 'neq':
+                return activityCount !== activityThreshold;
+            default:
+                console.warn(`Unknown operator for IP activity threshold: ${operator}, defaulting to gt`);
+                return activityCount > activityThreshold;
+        }
     } catch (error) {
         console.error('Error checking IP activity threshold:', error);
         return false;
