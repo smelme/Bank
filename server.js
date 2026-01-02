@@ -3179,6 +3179,42 @@ app.get('/admin/me', authenticateAdmin, async (req, res) => {
 });
 
 /**
+ * POST /admin/refresh - Refresh admin token
+ */
+app.post('/admin/refresh', authenticateAdmin, async (req, res) => {
+    try {
+        // Generate new JWT token with extended expiration
+        const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'orchestrator-secret');
+        const token = await new SignJWT({
+            sub: req.admin.id,
+            username: req.admin.username,
+            email: req.admin.email,
+            role: req.admin.role,
+            type: 'admin'
+        })
+            .setProtectedHeader({ alg: 'HS256' })
+            .setIssuedAt()
+            .setExpirationTime('8h') // 8 hour session
+            .sign(secret);
+        
+        res.json({
+            success: true,
+            token,
+            admin: {
+                id: req.admin.id,
+                username: req.admin.username,
+                email: req.admin.email,
+                full_name: req.admin.full_name,
+                role: req.admin.role
+            }
+        });
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        res.status(500).json({ error: 'Token refresh failed' });
+    }
+});
+
+/**
  * GET /admin/rules - List all rules
  */
 app.get('/admin/rules', authenticateAdmin, async (req, res) => {

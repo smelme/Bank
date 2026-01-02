@@ -15,6 +15,9 @@ const appState = {
   currentPage: 'dashboard'
 };
 
+// Token refresh interval (1 hour = 3600000ms)
+let tokenRefreshInterval = null;
+
 // ==================== Initialization ====================
 document.addEventListener('DOMContentLoaded', () => {
   initializeApp();
@@ -27,6 +30,9 @@ async function initializeApp() {
       // Verify token and get admin info
       const admin = await fetchAPI('/admin/me');
       appState.admin = admin;
+      
+      // Start token refresh interval
+      startTokenRefresh();
       
       showApp();
       loadPage('dashboard');
@@ -43,6 +49,49 @@ async function initializeApp() {
   // Hide loading screen
   document.getElementById('loading-screen').classList.add('hidden');
 }
+
+// ==================== Token Refresh ====================
+function startTokenRefresh() {
+  // Clear any existing interval
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+  }
+  
+  // Refresh token every hour (1 hour = 3600000ms)
+  tokenRefreshInterval = setInterval(async () => {
+    try {
+      console.log('Refreshing admin token...');
+      const response = await fetch(`${API_BASE}/admin/refresh`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${appState.token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        appState.token = data.token;
+        localStorage.setItem('admin_token', data.token);
+        console.log('Token refreshed successfully');
+      } else {
+        console.error('Token refresh failed, stopping refresh interval');
+        stopTokenRefresh();
+      }
+    } catch (error) {
+      console.error('Token refresh error:', error);
+      stopTokenRefresh();
+    }
+  }, 3600000); // 1 hour
+}
+
+function stopTokenRefresh() {
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+    tokenRefreshInterval = null;
+  }
+}
+
 
 // ==================== Authentication ====================
 function showLogin() {
@@ -88,6 +137,9 @@ async function handleLogin(e) {
     
     console.log('Login successful, showing app');
     
+    // Start token refresh interval
+    startTokenRefresh();
+    
     // Show app
     document.getElementById('login-page').classList.add('hidden');
     showApp();
@@ -105,6 +157,10 @@ async function handleLogin(e) {
 
 function handleLogout() {
   if (confirm('Are you sure you want to logout?')) {
+    // Stop token refresh
+    stopTokenRefresh();
+    
+    // Clear state
     appState.token = null;
     appState.admin = null;
     localStorage.removeItem('admin_token');
@@ -190,6 +246,16 @@ async function fetchAPI(endpoint, options = {}) {
     ...options,
     headers
   });
+  
+  // Handle token expiration or invalid token
+  if (response.status === 401 || response.status === 403) {
+    console.log('Token expired, invalid, or account inactive - clearing and redirecting to login');
+    localStorage.removeItem('admin_token');
+    appState.token = null;
+    appState.admin = null;
+    showLogin();
+    throw new Error('Session expired or access denied. Please login again.');
+  }
   
   const data = await response.json();
   
