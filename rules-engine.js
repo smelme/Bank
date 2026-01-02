@@ -24,7 +24,7 @@ import * as db from './database.js';
 export async function evaluateRules(context) {
     try {
         // Get all active rules ordered by priority
-        const rules = await db.getRules({ is_active: true });
+        const rules = await db.getRules({ is_enabled: true });
         
         if (!rules || rules.length === 0) {
             // No rules - allow all user's registered methods

@@ -1543,9 +1543,9 @@ export async function getRules(filters = {}) {
         const params = [];
         let paramIndex = 1;
         
-        if (filters.is_active !== undefined) {
-            query += ` AND is_active = $${paramIndex}`;
-            params.push(filters.is_active);
+        if (filters.is_enabled !== undefined) {
+            query += ` AND is_enabled = $${paramIndex}`;
+            params.push(filters.is_enabled);
             paramIndex++;
         }
         
@@ -1801,8 +1801,8 @@ export async function getActivityStats(filters = {}) {
         // Recent activity
         const recentResult = await pool.query(
             `SELECT * FROM auth_activity 
-             WHERE created_at >= $1 
-             ORDER BY created_at DESC 
+             WHERE timestamp >= $1 
+             ORDER BY timestamp DESC 
              LIMIT 10`,
             [fromDate]
         );

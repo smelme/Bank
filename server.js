@@ -479,14 +479,11 @@ app.get('/v1/auth/available-methods/:username', async (req, res) => {
     console.log('Rules evaluation result:', rulesResult);
     
     // Log the rules evaluation attempt
-    await activityLogger.logAuthActivity({
-      userId: user.id,
+    await req.logAuthActivity({
+      user_id: user.id,
       username: user.username,
-      method: 'rules_evaluation',
+      auth_method: 'rules_evaluation',
       success: rulesResult.allowed,
-      ipAddress: authContext.ip,
-      userAgent: req.get('User-Agent'),
-      location: authContext.location,
       metadata: {
         rulesApplied: rulesResult.rulesApplied,
         blockReason: rulesResult.blockReason,
