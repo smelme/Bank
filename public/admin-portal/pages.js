@@ -1889,3 +1889,132 @@ window.addAction = addAction;
 window.removeAction = removeAction;
 window.onActionTypeChange = onActionTypeChange;
 window.onConditionPropertyChange = onConditionPropertyChange;
+
+// Helper function to summarize rule conditions
+function getConditionSummary(conditions) {
+  if (!conditions || !conditions.rules || conditions.rules.length === 0) {
+    return 'No conditions';
+  }
+
+  const count = conditions.rules.length;
+  const operator = conditions.operator || 'AND';
+  return `${count} condition${count > 1 ? 's' : ''} (${operator})`;
+}
+
+// Helper function to summarize rule actions
+function getActionSummary(actions) {
+  if (!actions || actions.length === 0) {
+    return 'No actions';
+  }
+
+  const summaries = actions.map(action => {
+    switch (action.type) {
+      case 'allow_methods':
+        return `Allow: ${action.methods.join(', ')}`;
+      case 'deny_methods':
+        return `Deny: ${action.methods.join(', ')}`;
+      case 'block_access':
+        return `Block access: ${action.reason || 'No reason'}`;
+      case 'require_2fa':
+        return 'Require 2FA';
+      default:
+        return action.type;
+    }
+  });
+
+  return summaries.join(', ');
+}
+
+// Helper function to get operator options based on property type
+function getOperatorOptions(property, selectedOperator = '') {
+    let operators = [];
+    
+    switch (property) {
+        case 'ip_multi_account':
+            operators = [{ value: 'exceeds_threshold', label: 'Exceeds Threshold' }];
+            break;
+        case 'ip_activity_threshold':
+            operators = [
+                { value: 'gt', label: 'Greater Than' },
+                { value: 'gte', label: 'Greater Than or Equal' },
+                { value: 'lt', label: 'Less Than' },
+                { value: 'lte', label: 'Less Than or Equal' },
+                { value: 'eq', label: 'Equals' },
+                { value: 'neq', label: 'Not Equals' }
+            ];
+            break;
+        case 'user_country_jump':
+            operators = [{ value: 'detected', label: 'Detected' }];
+            break;
+        default:
+            operators = [
+                { value: 'equals', label: 'Equals' },
+                { value: 'not_equals', label: 'Not Equals' },
+                { value: 'contains', label: 'Contains' },
+                { value: 'not_contains', label: 'Not Contains' },
+                { value: 'in_list', label: 'In List' },
+                { value: 'not_in_list', label: 'Not In List' }
+            ];
+            break;
+    }
+    
+    return operators.map(op => 
+        `<option value="${op.value}" ${selectedOperator === op.value ? 'selected' : ''}>${op.label}</option>`
+    ).join('');
+}
+
+// Helper function to get condition value inputs based on property type
+function getConditionValueInputs(condition, index) {
+    const property = condition.property;
+    const value = condition.value || {};
+    
+    switch (property) {
+        case 'ip_multi_account':
+            return `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Account Threshold</label>
+                        <input type="number" name="conditions[${index}][value][accountThreshold]" 
+                               value="${value.accountThreshold || 3}" min="2" placeholder="Min accounts">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Window (minutes)</label>
+                        <input type="number" name="conditions[${index}][value][timeWindowMinutes]" 
+                               value="${value.timeWindowMinutes || 10}" min="1" placeholder="Minutes">
+                    </div>
+                </div>
+            `;
+            
+        case 'ip_activity_threshold':
+            return `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Activity Threshold</label>
+                        <input type="number" name="conditions[${index}][value][activityThreshold]" 
+                               value="${value.activityThreshold || 10}" min="0" placeholder="Number of activities">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Window (minutes)</label>
+                        <input type="number" name="conditions[${index}][value][timeWindowMinutes]" 
+                               value="${value.timeWindowMinutes || 30}" min="1" placeholder="Minutes">
+                    </div>
+                </div>
+            `;
+            
+        case 'user_country_jump':
+            return `
+                <div class="form-group">
+                    <label>Time Window (minutes)</label>
+                    <input type="number" name="conditions[${index}][value][timeWindowMinutes]" 
+                           value="${value.timeWindowMinutes || 30}" min="1" placeholder="Minutes">
+                </div>
+            `;
+            
+        default:
+            return `<div class="form-group">
+                <label>Value</label>
+                <input type="text" name="conditions[${index}][value]" 
+                       value="${typeof value === 'string' ? value : ''}" placeholder="Enter value or comma-separated list">
+            </div>`;
+    }
+}
