@@ -170,8 +170,9 @@ async function validateKeycloakToken(req, res, next) {
     
     // Manually validate audience (can be string or array)
     const audiences = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-    if (!audiences.includes('tamange-web')) {
-      console.log('Token validation failed: unexpected "aud" claim value. Expected: tamange-web, Got:', payload.aud);
+    const validAudiences = ['tamange-web', 'account']; // Accept both our client and Keycloak's account client
+    if (!audiences.some(aud => validAudiences.includes(aud))) {
+      console.log('Token validation failed: unexpected "aud" claim value. Expected one of:', validAudiences, 'Got:', payload.aud);
       return res.status(401).json({ error: 'Invalid token audience' });
     }
     
