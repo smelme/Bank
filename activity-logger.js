@@ -72,8 +72,21 @@ async function getGeoLocation(ipAddress) {
  */
 export async function logAuthActivity(data) {
     try {
+        console.log('[ACTIVITY] logAuthActivity called with:', {
+            username: data.username,
+            auth_method: data.auth_method,
+            success: data.success,
+            has_req: !!data.req,
+            req_type: typeof data.req
+        });
+        
+        if (!data.req) {
+            console.error('[ACTIVITY] ERROR: data.req is undefined!');
+            return;
+        }
+        
         const ipAddress = getClientIP(data.req);
-        const userAgent = data.req.headers['user-agent'] || null;
+        const userAgent = data.req.headers?.['user-agent'] || null;
         
         // Get geolocation (async, don't block on it)
         const geo = await getGeoLocation(ipAddress).catch(err => {
@@ -81,8 +94,10 @@ export async function logAuthActivity(data) {
             return { country: null, city: null };
         });
         
+        console.log('[ACTIVITY] About to log to database');
+        
         // Log to database
-        await db.logActivity({
+        const result = await db.logActivity({
             user_id: data.user_id || null,
             username: data.username,
             auth_method: data.auth_method,
@@ -99,9 +114,9 @@ export async function logAuthActivity(data) {
             }
         });
         
-        console.log(`Auth activity logged: ${data.username} via ${data.auth_method} from ${ipAddress} (${geo.country || 'unknown'}) - ${data.success ? 'SUCCESS' : 'FAILED'}`);
+        console.log(`[ACTIVITY] Auth activity logged: ${data.username} via ${data.auth_method} from ${ipAddress} (${geo.country || 'unknown'}) - ${data.success ? 'SUCCESS' : 'FAILED'} - DB result: ${!!result}`);
     } catch (error) {
-        console.error('Error logging auth activity:', error);
+        console.error('[ACTIVITY] Error logging auth activity:', error);
         // Don't throw - logging should never break the auth flow
     }
 }

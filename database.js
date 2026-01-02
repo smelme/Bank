@@ -1645,9 +1645,15 @@ export async function deleteRule(id) {
 
 export async function logActivity(activityData) {
     if (!pool) {
-        console.warn('No database connection - activity not logged');
+        console.warn('[DB] No database connection - activity not logged');
         return null;
     }
+    
+    console.log('[DB] logActivity called:', {
+        username: activityData.username,
+        auth_method: activityData.auth_method,
+        success: activityData.success
+    });
     
     try {
         const result = await pool.query(
@@ -1670,9 +1676,10 @@ export async function logActivity(activityData) {
                 JSON.stringify(activityData.metadata || {})
             ]
         );
+        console.log('[DB] Activity logged successfully, id:', result.rows[0]?.id);
         return result.rows[0];
     } catch (error) {
-        console.error('Error logging activity:', error);
+        console.error('[DB] Error logging activity:', error);
         return null;
     }
 }
@@ -1716,18 +1723,18 @@ export async function getActivity(filters = {}) {
         }
         
         if (filters.from_date) {
-            query += ` AND created_at >= $${paramIndex}`;
+            query += ` AND timestamp >= $${paramIndex}`;
             params.push(filters.from_date);
             paramIndex++;
         }
         
         if (filters.to_date) {
-            query += ` AND created_at <= $${paramIndex}`;
+            query += ` AND timestamp <= $${paramIndex}`;
             params.push(filters.to_date);
             paramIndex++;
         }
         
-        query += ' ORDER BY created_at DESC';
+        query += ' ORDER BY timestamp DESC';
         
         if (filters.limit) {
             query += ` LIMIT $${paramIndex}`;
@@ -1756,7 +1763,7 @@ export async function getActivityStats(filters = {}) {
         
         // Total attempts
         const totalResult = await pool.query(
-            'SELECT COUNT(*) as total FROM auth_activity WHERE created_at >= $1',
+            'SELECT COUNT(*) as total FROM auth_activity WHERE timestamp >= $1',
             [fromDate]
         );
         
@@ -1766,7 +1773,7 @@ export async function getActivityStats(filters = {}) {
                 COUNT(*) FILTER (WHERE success = true) as successful,
                 COUNT(*) FILTER (WHERE success = false) as failed
              FROM auth_activity 
-             WHERE created_at >= $1`,
+             WHERE timestamp >= $1`,
             [fromDate]
         );
         
@@ -1774,7 +1781,7 @@ export async function getActivityStats(filters = {}) {
         const methodResult = await pool.query(
             `SELECT auth_method, COUNT(*) as count 
              FROM auth_activity 
-             WHERE created_at >= $1 
+             WHERE timestamp >= $1 
              GROUP BY auth_method 
              ORDER BY count DESC`,
             [fromDate]
@@ -1784,7 +1791,7 @@ export async function getActivityStats(filters = {}) {
         const countryResult = await pool.query(
             `SELECT geo_country, COUNT(*) as count 
              FROM auth_activity 
-             WHERE created_at >= $1 AND geo_country IS NOT NULL
+             WHERE timestamp >= $1 AND geo_country IS NOT NULL
              GROUP BY geo_country 
              ORDER BY count DESC 
              LIMIT 10`,
