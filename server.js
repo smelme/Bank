@@ -95,6 +95,9 @@ const __dirname = path.dirname(__filename);
 app.use(cors());
 app.use(bodyParser.json());
 
+// Attach activity logger middleware to all requests
+app.use(activityLogger.attachActivityLogger);
+
 // === Keycloak JWT Validation Middleware ===
 
 const KEYCLOAK_REALM_URL = 'https://keycloak-production-5bd5.up.railway.app/realms/Tamange%20Bank';
@@ -309,6 +312,18 @@ app.post('/v1/users/register', async (req, res) => {
     }
     
     // Log registration event
+    await req.logAuthActivity({
+      user_id: user.id,
+      username: user.username,
+      auth_method: 'registration',
+      success: true,
+      metadata: { 
+        document_number: documentNumber,
+        document_type: documentType,
+        source: 'digital_id_registration'
+      }
+    });
+    
     await db.logAuthEvent({
       userId: user.id,
       username: user.username,
@@ -769,6 +784,18 @@ app.post('/v1/passkeys/register/verify', async (req, res) => {
     await db.deleteChallenge(challengeRecord.challenge);
     
     // Log enrollment event
+    await req.logAuthActivity({
+      user_id: userId,
+      username: user.username,
+      auth_method: 'passkey_enrollment',
+      success: true,
+      metadata: { 
+        credential_id: credentialIdB64,
+        device_type: regInfo.credentialDeviceType ?? regInfo.credential?.credentialDeviceType ?? null,
+        backup_eligible: regInfo.credentialBackedUp ?? regInfo.credential?.credentialBackedUp ?? false
+      }
+    });
+    
     await db.logAuthEvent({
       userId,
       username: user.username,
@@ -946,6 +973,15 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
     
     if (!verification.verified) {
       // Log failed attempt
+      await req.logAuthActivity({
+        user_id: user.id,
+        username: user.username,
+        auth_method: 'passkey',
+        success: false,
+        failure_reason: 'Verification failed',
+        metadata: { verification_details: String(verification) }
+      });
+      
       await db.logAuthEvent({
         userId: user.id,
         username: user.username,
@@ -979,6 +1015,14 @@ app.post('/v1/passkeys/auth/verify', async (req, res) => {
     await db.deleteChallenge(challengeRecord.challenge);
     
     // Log successful auth
+    await req.logAuthActivity({
+      user_id: user.id,
+      username: user.username,
+      auth_method: 'passkey',
+      success: true,
+      metadata: { credential_id: dbCredential.credential_id }
+    });
+    
     await db.logAuthEvent({
       userId: user.id,
       username: user.username,
@@ -1405,6 +1449,14 @@ app.post('/v1/auth/digitalid/complete', async (req, res) => {
     }
     
     // Log successful authentication
+    await req.logAuthActivity({
+      user_id: user.id,
+      username: user.username,
+      auth_method: 'digitalid',
+      success: true,
+      metadata: { session_token: sessionToken }
+    });
+    
     await db.logAuthEvent({
       userId: user.id,
       username: user.username,
