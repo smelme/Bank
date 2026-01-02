@@ -193,6 +193,9 @@ async function evaluateSingleCondition(condition, context) {
         case 'ip_multi_account':
             return await checkIPMultiAccount(context.ip_address, value);
             
+        case 'ip_activity_threshold':
+            return await checkIPActivityThreshold(context.ip_address, value);
+            
         case 'user_country_jump':
             return await checkUserCountryJump(context.username, value);
             
@@ -397,6 +400,44 @@ async function checkIPMultiAccount(ipAddress, config) {
         return accountCount >= accountThreshold;
     } catch (error) {
         console.error('Error checking IP multi-account:', error);
+        return false;
+    }
+}
+
+/**
+ * Check if an IP address has exceeded activity threshold within a time window
+ * @param {string} ipAddress - IP address to check
+ * @param {Object} config - Configuration with threshold and timeWindow
+ * @param {number} config.activityThreshold - Maximum number of activities allowed
+ * @param {number} config.timeWindowMinutes - Time window in minutes
+ * @returns {boolean} Whether the condition is met (threshold exceeded)
+ */
+async function checkIPActivityThreshold(ipAddress, config) {
+    if (!ipAddress || !config || typeof config !== 'object') {
+        return false;
+    }
+    
+    const { activityThreshold = 10, timeWindowMinutes = 5 } = config;
+    
+    try {
+        const timeWindowMs = timeWindowMinutes * 60 * 1000;
+        const since = new Date(Date.now() - timeWindowMs);
+        
+        // Count total activities from this IP within the time window
+        const result = await db.pool.query(
+            `SELECT COUNT(*) as activity_count 
+             FROM auth_activity 
+             WHERE ip_address = $1 
+             AND timestamp >= $2`,
+            [ipAddress, since]
+        );
+        
+        const activityCount = parseInt(result.rows[0].activity_count);
+        console.log(`[RULES] IP ${ipAddress} has ${activityCount} activities in last ${timeWindowMinutes} minutes (threshold: ${activityThreshold})`);
+        
+        return activityCount > activityThreshold;
+    } catch (error) {
+        console.error('Error checking IP activity threshold:', error);
         return false;
     }
 }
