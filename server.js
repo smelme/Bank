@@ -3230,7 +3230,7 @@ app.get('/admin/rules', authenticateAdmin, async (req, res) => {
         }
         
         const rules = await db.getRules(filters);
-        res.json({ success: true, rules });
+        res.json({ rules });
     } catch (error) {
         console.error('Error getting rules:', error);
         res.status(500).json({ error: 'Failed to get rules' });
@@ -3246,7 +3246,7 @@ app.get('/admin/rules/:id', authenticateAdmin, async (req, res) => {
         if (!rule) {
             return res.status(404).json({ error: 'Rule not found' });
         }
-        res.json({ success: true, rule });
+        res.json({ rule });
     } catch (error) {
         console.error('Error getting rule:', error);
         res.status(500).json({ error: 'Failed to get rule' });
