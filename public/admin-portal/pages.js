@@ -1097,6 +1097,7 @@ function showRuleModal(rule = null) {
                           <option value="time_of_day" ${condition.property === 'time_of_day' ? 'selected' : ''}>Time of Day</option>
                           <option value="user_verified" ${condition.property === 'user_verified' ? 'selected' : ''}>User Verified</option>
                           <option value="ip_multi_account" ${condition.property === 'ip_multi_account' ? 'selected' : ''}>IP Multi-Account Usage</option>
+                          <option value="ip_activity_threshold" ${condition.property === 'ip_activity_threshold' ? 'selected' : ''}>IP Activity Threshold</option>
                           <option value="user_country_jump" ${condition.property === 'user_country_jump' ? 'selected' : ''}>User Country Jump</option>
                         </select>
                       </div>
@@ -1141,6 +1142,7 @@ function showRuleModal(rule = null) {
                           <option value="time_of_day">Time of Day</option>
                           <option value="user_verified">User Verified</option>
                           <option value="ip_multi_account">IP Multi-Account Usage</option>
+                          <option value="ip_activity_threshold">IP Activity Threshold</option>
                           <option value="user_country_jump">User Country Jump</option>
                         </select>
                       </div>
@@ -1494,6 +1496,11 @@ async function handleRuleSubmit(event, ruleId) {
         accountThreshold: parseInt(formData.get(`conditions[${conditionIndex}][value][accountThreshold]`)) || 3,
         timeWindowMinutes: parseInt(formData.get(`conditions[${conditionIndex}][value][timeWindowMinutes]`)) || 10
       };
+    } else if (property === 'ip_activity_threshold') {
+      value = {
+        activityThreshold: parseInt(formData.get(`conditions[${conditionIndex}][value][activityThreshold]`)) || 10,
+        timeWindowMinutes: parseInt(formData.get(`conditions[${conditionIndex}][value][timeWindowMinutes]`)) || 5
+      };
     } else if (property === 'user_country_jump') {
       value = {
         timeWindowMinutes: parseInt(formData.get(`conditions[${conditionIndex}][value][timeWindowMinutes]`)) || 30
@@ -1764,6 +1771,24 @@ function onConditionPropertyChange(selectElement, conditionIndex) {
                         <label>Time Window (minutes)</label>
                         <input type="number" name="conditions[${conditionIndex}][value][timeWindowMinutes]" 
                                value="10" min="1" placeholder="Minutes">
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'ip_activity_threshold':
+            operators = [{ value: 'exceeds_threshold', label: 'Exceeds Threshold' }];
+            valueInput = `
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Activity Threshold</label>
+                        <input type="number" name="conditions[${conditionIndex}][value][activityThreshold]" 
+                               value="10" min="1" placeholder="Max activities">
+                    </div>
+                    <div class="form-group">
+                        <label>Time Window (minutes)</label>
+                        <input type="number" name="conditions[${conditionIndex}][value][timeWindowMinutes]" 
+                               value="30" min="1" placeholder="Minutes">
                     </div>
                 </div>
             `;
