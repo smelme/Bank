@@ -37,6 +37,9 @@ pids
 dist/
 build/
 
+# ML Models (downloaded at runtime)
+models/
+
 # Test files (if you have any sensitive test data)
 test-response.json
 test-crypto.js

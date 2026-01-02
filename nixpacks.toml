@@ -1,11 +1,27 @@
 [phases.setup]
-nixPkgs = ["nodejs", "python3", "pkg-config", "pixman", "cairo", "pango"]
+nixPkgs = ["nodejs", "python3", "pkg-config", "pixman", "cairo", "pango", "wget"]
 
 [phases.install]
 cmds = ["npm ci --include=optional"]
 
 [phases.build]
-cmds = []
+cmds = [
+  "mkdir -p models",
+  "wget -q -O models/tiny_face_detector_model-weights_manifest.json https://raw.githubusercontent.com/vladmandic/face-api/master/model/tiny_face_detector_model-weights_manifest.json",
+  "wget -q -O models/tiny_face_detector_model.bin https://raw.githubusercontent.com/vladmandic/face-api/master/model/tiny_face_detector_model.bin",
+  "wget -q -O models/face_landmark_68_model-weights_manifest.json https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_landmark_68_model-weights_manifest.json",
+  "wget -q -O models/face_landmark_68_model.bin https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_landmark_68_model.bin",
+  "wget -q -O models/face_landmark_68_tiny_model-weights_manifest.json https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_landmark_68_tiny_model-weights_manifest.json",
+  "wget -q -O models/face_landmark_68_tiny_model.bin https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_landmark_68_tiny_model.bin",
+  "wget -q -O models/face_recognition_model-weights_manifest.json https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_recognition_model-weights_manifest.json",
+  "wget -q -O models/face_recognition_model.bin https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_recognition_model.bin",
+  "wget -q -O models/face_expression_model-weights_manifest.json https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_expression_model-weights_manifest.json",
+  "wget -q -O models/face_expression_model.bin https://raw.githubusercontent.com/vladmandic/face-api/master/model/face_expression_model.bin",
+  "wget -q -O models/age_gender_model-weights_manifest.json https://raw.githubusercontent.com/vladmandic/face-api/master/model/age_gender_model-weights_manifest.json",
+  "wget -q -O models/age_gender_model.bin https://raw.githubusercontent.com/vladmandic/face-api/master/model/age_gender_model.bin",
+  "wget -q -O models/ssd_mobilenetv1_model-weights_manifest.json https://raw.githubusercontent.com/vladmandic/face-api/master/model/ssd_mobilenetv1_model-weights_manifest.json",
+  "wget -q -O models/ssd_mobilenetv1_model.bin https://raw.githubusercontent.com/vladmandic/face-api/master/model/ssd_mobilenetv1_model.bin"
+]
 
 [start]
 cmd = "node server.js"
