@@ -830,3 +830,4 @@ window.loadDashboard = loadDashboard;
 window.loadActivity = loadActivity;
 window.loadUsers = loadUsers;
 window.loadRules = loadRules;
+window.viewUserDetails = viewUserDetails;
