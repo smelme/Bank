@@ -206,7 +206,9 @@ function capitalize(str) {
 }
 
 function formatDate(dateString) {
+  if (!dateString) return 'N/A';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'Invalid date';
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
@@ -217,7 +219,9 @@ function formatDate(dateString) {
 }
 
 function formatRelativeTime(dateString) {
+  if (!dateString) return 'N/A';
   const date = new Date(dateString);
+  if (isNaN(date.getTime())) return 'Invalid date';
   const now = new Date();
   const diffMs = now - date;
   const diffMins = Math.floor(diffMs / 60000);

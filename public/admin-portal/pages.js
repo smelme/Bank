@@ -428,8 +428,8 @@ async function loadActivityTable(offset = 0) {
                   ${act.failure_reason || '-'}
                 </td>
                 <td>
-                  <div>${formatRelativeTime(act.created_at)}</div>
-                  <small style="color: var(--text-secondary);">${formatDate(act.created_at)}</small>
+                  <div>${formatRelativeTime(act.timestamp)}</div>
+                  <small style="color: var(--text-secondary);">${formatDate(act.timestamp)}</small>
                 </td>
               </tr>
             `).join('')}
