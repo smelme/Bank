@@ -131,11 +131,20 @@ function evaluateConditions(conditions, context) {
  */
 function evaluateSingleCondition(condition, context) {
     const { field, property, operator, value } = condition;
-    const fieldName = field || property; // Support both field and property for compatibility
+    let fieldName = field || property; // Support both field and property for compatibility
     
     if (!fieldName || !operator) {
         return false;
     }
+    
+    // Map common property names to context field names
+    const fieldMapping = {
+        'country': 'geo_country',
+        'city': 'geo_city',
+        'ip': 'ip_address'
+    };
+    
+    fieldName = fieldMapping[fieldName] || fieldName;
     
     // Get the actual value from context
     let contextValue = getNestedValue(context, fieldName);
