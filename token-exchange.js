@@ -3,10 +3,10 @@ import path from 'path';
 import crypto from 'crypto';
 import { importPKCS8, SignJWT } from 'jose';
 
-// Simple token-exchange helper for Orchestrator -> Keycloak
+// Simple token-exchange helper for TrustGate -> Keycloak
 // Env variables used:
 // - ORCHESTRATOR_PRIVATE_KEY or ORCHESTRATOR_PRIVATE_KEY_PATH (PEM PKCS8)
-// - ORCHESTRATOR_ISS (issuer, default: 'orchestrator')
+// - ORCHESTRATOR_ISS (issuer, default: 'trustgate')
 // - ORCHESTRATOR_ASSERTION_LIFETIME (seconds, default: 30)
 // - KEYCLOAK_TOKEN_URL (full token endpoint URL)
 // - KEYCLOAK_CLIENT_ID, KEYCLOAK_CLIENT_SECRET
@@ -24,7 +24,7 @@ async function signAssertion(user) {
   const iss = process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app';
   const aud = process.env.KEYCLOAK_CLIENT_ID || 'tamange-web';
   const lifetime = parseInt(process.env.ORCHESTRATOR_ASSERTION_LIFETIME || '30', 10);
-  const azp = process.env.ORCHESTRATOR_CLIENT_ID || 'orchestrator-service';
+  const azp = process.env.ORCHESTRATOR_CLIENT_ID || 'trustgate-service';
   const scope = process.env.ORCHESTRATOR_SCOPE || 'profile email';
 
   // generate jti

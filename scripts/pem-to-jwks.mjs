@@ -20,7 +20,7 @@ try {
   const pubPem = fs.readFileSync(pubPemPath, 'utf8');
   const key = await importSPKI(pubPem, 'RS256');
   const jwk = await exportJWK(key);
-  jwk.kid = jwk.kid || 'orchestrator-1';
+  jwk.kid = jwk.kid || 'trustgate-1';
   jwk.use = 'sig'; // Signature use
   jwk.alg = 'RS256'; // Algorithm
 
@@ -28,7 +28,7 @@ try {
 
   // Ensure secrets directory
   fs.mkdirSync('./secrets', { recursive: true });
-  const outPath = './secrets/orchestrator-jwks.json';
+  const outPath = './secrets/trustgate-jwks.json';
   fs.writeFileSync(outPath, JSON.stringify(jwks, null, 2));
 
   console.log(JSON.stringify(jwks, null, 2));

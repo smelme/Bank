@@ -109,8 +109,8 @@ const JWKS = createRemoteJWKSet(
  * Middleware to validate Keycloak JWT tokens
  * Add this to routes that require authentication
  */
-// Middleware to validate orchestrator's own tokens
-async function validateOrchestratorToken(req, res, next) {
+// Middleware to validate TrustGate's own tokens
+async function validateTrustGateToken(req, res, next) {
   const authHeader = req.headers.authorization;
   
   console.log('UserInfo endpoint called with Authorization header:', authHeader ? 'present' : 'missing');
@@ -125,11 +125,11 @@ async function validateOrchestratorToken(req, res, next) {
   
   try {
     // Use our JWKS endpoint to verify tokens
-    const orchestratorJWKS = createRemoteJWKSet(
+    const trustgateJWKS = createRemoteJWKSet(
       new URL('https://bank-production-37ea.up.railway.app/.well-known/jwks.json')
     );
     
-    const { payload } = await jwtVerify(token, orchestratorJWKS, {
+    const { payload } = await jwtVerify(token, trustgateJWKS, {
       issuer: process.env.ORCHESTRATOR_ISS || 'https://bank-production-37ea.up.railway.app'
     });
     
@@ -148,7 +148,7 @@ async function validateOrchestratorToken(req, res, next) {
     
     next();
   } catch (error) {
-    console.error('Orchestrator token validation failed:', error.message);
+    console.error('TrustGate token validation failed:', error.message);
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
@@ -201,7 +201,7 @@ app.get('/api/userinfo', validateKeycloakToken, (req, res) => {
 
 // === End Keycloak JWT Validation ===
 
-// === Orchestrator API Endpoints ===
+// === TrustGate API Endpoints ===
 
 import * as keycloakAdmin from './keycloak-admin.js';
 import { 
@@ -218,7 +218,7 @@ import { signAssertion, exchangeWithKeycloak, loadPrivateKey } from './token-exc
  * 
  * Flow:
  * 1. Verify digital ID (your existing flow)
- * 2. Create user in Orchestrator DB (master)
+ * 2. Create user in TrustGate DB (master)
  * 3. Push user to Keycloak via Admin API
  * 4. Return user info for passkey enrollment
  */
@@ -258,7 +258,7 @@ app.post('/v1/users/register', async (req, res) => {
       }
     }
     
-    // Check if username already exists in Orchestrator DB
+    // Check if username already exists in TrustGate DB
     const existingUser = await db.getUserByUsername(username);
     if (existingUser) {
       return res.status(409).json({ 
@@ -268,7 +268,7 @@ app.post('/v1/users/register', async (req, res) => {
       });
     }
     
-    // Create user in Orchestrator DB ONLY
+    // Create user in TrustGate DB ONLY
     // Keycloak user will be created automatically on first login via identity provider
     let user;
     try {
@@ -286,9 +286,9 @@ app.post('/v1/users/register', async (req, res) => {
         faceDescriptor
       });
       
-      console.log(`Created user in Orchestrator DB: ${user.id} (Keycloak user will be auto-created on first login)`);
+      console.log(`Created user in TrustGate DB: ${user.id} (Keycloak user will be auto-created on first login)`);
     } catch (dbError) {
-      console.error('Failed to create user in Orchestrator DB:', dbError.message);
+      console.error('Failed to create user in TrustGate DB:', dbError.message);
       
       return res.status(500).json({ 
         success: false, 
@@ -1670,7 +1670,7 @@ app.get('/debug/user/:userId/face-descriptor', async (req, res) => {
   }
 });
 
-// === End Orchestrator API Endpoints ===
+// === End TrustGate API Endpoints ===
 
 
 
@@ -1693,10 +1693,10 @@ app.get('/admin', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'admin-portal', 'index.html'));
 });
 
-// Dev-only JWKS endpoint to help Keycloak fetch the Orchestrator public key during local testing
+// Dev-only JWKS endpoint to help Keycloak fetch the TrustGate public key during local testing
 app.get('/.well-known/jwks.json', (req, res) => {
   try {
-    const jwksPath = path.join(__dirname, 'secrets', 'orchestrator-jwks.json');
+    const jwksPath = path.join(__dirname, 'secrets', 'trustgate-jwks.json');
 
     // Prefer a file on disk (created by pem-to-jwks), else accept JWKS provided via an env var.
     if (fs.existsSync(jwksPath)) {
@@ -1710,12 +1710,12 @@ app.get('/.well-known/jwks.json', (req, res) => {
         const jwks = JSON.parse(process.env.ORCHESTRATOR_JWKS);
         return res.json(jwks);
       } catch (parseErr) {
-        console.error('Failed to parse ORCHESTRATOR_JWKS env var as JSON:', parseErr);
-        return res.status(500).json({ error: 'Invalid ORCHESTRATOR_JWKS value' });
+        console.error('Failed to parse TRUSTGATE_JWKS env var as JSON:', parseErr);
+        return res.status(500).json({ error: 'Invalid TRUSTGATE_JWKS value' });
       }
     }
 
-    return res.status(404).json({ error: 'JWKS not generated or configured. Run scripts/pem-to-jwks.mjs or set ORCHESTRATOR_JWKS' });
+    return res.status(404).json({ error: 'JWKS not generated or configured. Run scripts/pem-to-jwks.mjs or set TRUSTGATE_JWKS' });
   } catch (err) {
     console.error('Error serving JWKS:', err);
     return res.status(500).json({ error: 'failed to serve jwks' });
@@ -1726,7 +1726,7 @@ app.get('/.well-known/jwks.json', (req, res) => {
 // Dev-only OpenID Connect discovery document to help Keycloak discover the JWKS
 app.get('/.well-known/openid-configuration', (req, res) => {
   try {
-    // Determine issuer: prefer explicit env var ORCHESTRATOR_ISS, else derive from request host
+    // Determine issuer: prefer explicit env var TRUSTGATE_ISS, else derive from request host
     const issuer = (process.env.ORCHESTRATOR_ISS && process.env.ORCHESTRATOR_ISS.trim()) || (() => {
       const protocol = req.get('X-Forwarded-Proto') || req.protocol;
       return `${protocol}://${req.get('host')}`;
@@ -2451,8 +2451,8 @@ app.post('/token', express.urlencoded({ extended: true }), express.json(), async
   }
 });
 
-// OIDC UserInfo Endpoint (for identity provider flow - validates orchestrator tokens)
-app.get('/userinfo', validateOrchestratorToken, (req, res) => {
+// OIDC UserInfo Endpoint (for identity provider flow - validates TrustGate tokens)
+app.get('/userinfo', validateTrustGateToken, (req, res) => {
   console.log('Returning userinfo for user:', req.user.sub);
   res.json({
     sub: req.user.sub,
