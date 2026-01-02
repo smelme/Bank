@@ -1090,7 +1090,7 @@ function showRuleModal(rule = null) {
                     <div class="form-row">
                       <div class="form-group">
                         <label>Property</label>
-                        <select name="conditions[0][property]">
+                        <select name="conditions[0][property]" onchange="onConditionPropertyChange(this, 0)">
                           <option value="ip_address">IP Address</option>
                           <option value="user_agent">User Agent</option>
                           <option value="auth_method">Auth Method</option>
@@ -1104,19 +1104,13 @@ function showRuleModal(rule = null) {
                       </div>
                       <div class="form-group">
                         <label>Operator</label>
-                        <select name="conditions[0][operator]">
-                          <option value="equals">Equals</option>
-                          <option value="not_equals">Not Equals</option>
-                          <option value="contains">Contains</option>
-                          <option value="not_contains">Not Contains</option>
-                          <option value="in_list">In List</option>
-                          <option value="not_in_list">Not In List</option>
+                        <select name="conditions[0][operator]" onchange="onConditionPropertyChange(this, 0)">
+                          ${getOperatorOptions('ip_address', '')}
                         </select>
                       </div>
                     </div>
-                    <div class="form-group">
-                      <label>Value</label>
-                      <input type="text" name="conditions[0][value]" placeholder="Enter value or comma-separated list">
+                    <div class="condition-value-container">
+                      ${getConditionValueInputs({}, 0)}
                     </div>
                   </div>
                 </div>
@@ -1809,6 +1803,8 @@ window.addAction = addAction;
 window.removeAction = removeAction;
 window.onActionTypeChange = onActionTypeChange;
 window.onConditionPropertyChange = onConditionPropertyChange;
+window.getOperatorOptions = getOperatorOptions;
+window.getConditionValueInputs = getConditionValueInputs;
 
 // Helper function to summarize rule conditions
 function getConditionSummary(conditions) {
